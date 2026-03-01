@@ -9,6 +9,19 @@ const {
 } = require('../services/gemini.service');
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GET /api/ai-status  — health check to verify Gemini key is set
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/ai-status', (req, res) => {
+    res.json({
+        success: true,
+        keySet: !!process.env.GEMINI_API_KEY,
+        keyPreview: process.env.GEMINI_API_KEY
+            ? `${process.env.GEMINI_API_KEY.slice(0, 8)}...`
+            : 'NOT SET'
+    });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // POST /api/chat
 // Body: { message: string, history?: Array<{role, content}> }
 // ─────────────────────────────────────────────────────────────────────────────
@@ -17,15 +30,19 @@ router.post('/chat', async (req, res) => {
         const { message, history = [] } = req.body;
 
         if (!message || typeof message !== 'string' || !message.trim()) {
-            return res.status(400).json({ success: false, error: 'Message is required and must be a non-empty string' });
+            return res.status(400).json({ success: false, error: 'Message is required' });
         }
 
         const reply = await generateGeminiResponse(message.trim(), history);
         res.json({ success: true, reply });
 
     } catch (error) {
-        console.error('[/api/chat Error]', error.message);
-        res.status(500).json({ success: false, error: 'AI processing failed. Please try again.' });
+        console.error('[/api/chat Error]', error);
+        res.status(500).json({
+            success: false,
+            error: 'AI processing failed',
+            detail: error.message  // expose detail for debugging
+        });
     }
 });
 
@@ -45,8 +62,8 @@ router.post('/brainstorm', async (req, res) => {
         res.json({ success: true, ideas });
 
     } catch (error) {
-        console.error('[/api/brainstorm Error]', error.message);
-        res.status(500).json({ success: false, error: 'Brainstorming failed. Please try again.' });
+        console.error('[/api/brainstorm Error]', error);
+        res.status(500).json({ success: false, error: 'Brainstorming failed', detail: error.message });
     }
 });
 
@@ -64,48 +81,43 @@ router.post('/analyze', async (req, res) => {
 
         const rawResult = await analyzeDocument(text.trim());
 
-        // Parse and validate JSON from Gemini
         let parsed;
         try {
             parsed = JSON.parse(rawResult);
         } catch {
-            return res.status(500).json({ success: false, error: 'AI returned malformed response. Please try again.' });
+            return res.status(500).json({ success: false, error: 'AI returned malformed JSON', raw: rawResult });
         }
 
         res.json({ success: true, result: parsed });
 
     } catch (error) {
-        console.error('[/api/analyze Error]', error.message);
-        res.status(500).json({ success: false, error: 'Document analysis failed. Please try again.' });
+        console.error('[/api/analyze Error]', error);
+        res.status(500).json({ success: false, error: 'Document analysis failed', detail: error.message });
     }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/tasks/ai
-// Body: { action: 'analyze' | 'decompose', tasks?: string, taskTitle?: string }
+// Body: { action: 'analyze'|'decompose', tasks?: string, taskTitle?: string }
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/tasks/ai', async (req, res) => {
     try {
         const { action, tasks, taskTitle } = req.body;
 
         if (action === 'analyze') {
-            if (!tasks || typeof tasks !== 'string') {
-                return res.status(400).json({ success: false, error: 'Tasks string is required for analyze action' });
-            }
+            if (!tasks) return res.status(400).json({ success: false, error: 'tasks required' });
             const advice = await generateTaskAnalysis(tasks.trim());
             return res.json({ success: true, advice });
         }
 
         if (action === 'decompose') {
-            if (!taskTitle || typeof taskTitle !== 'string') {
-                return res.status(400).json({ success: false, error: 'taskTitle is required for decompose action' });
-            }
+            if (!taskTitle) return res.status(400).json({ success: false, error: 'taskTitle required' });
             const rawSubtasks = await decomposeTask(taskTitle.trim());
             let subtasks;
             try {
                 subtasks = JSON.parse(rawSubtasks);
             } catch {
-                return res.status(500).json({ success: false, error: 'AI returned malformed subtasks response.' });
+                return res.status(500).json({ success: false, error: 'Malformed subtasks JSON', raw: rawSubtasks });
             }
             return res.json({ success: true, subtasks });
         }
@@ -113,8 +125,8 @@ router.post('/tasks/ai', async (req, res) => {
         res.status(400).json({ success: false, error: 'action must be "analyze" or "decompose"' });
 
     } catch (error) {
-        console.error('[/api/tasks/ai Error]', error.message);
-        res.status(500).json({ success: false, error: 'Task AI feature failed. Please try again.' });
+        console.error('[/api/tasks/ai Error]', error);
+        res.status(500).json({ success: false, error: 'Task AI failed', detail: error.message });
     }
 });
 
