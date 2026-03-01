@@ -26,8 +26,10 @@ async function callBackend<T>(path: string, body: Record<string, unknown>): Prom
 
   if (!response.ok || !data.success) {
     const msg = data?.error ?? `Backend error ${response.status}`;
-    console.error(`[geminiService] ${path} failed:`, msg);
-    throw new Error(msg);
+    const detail = data?.detail ?? '';
+    // Log full server-side error for debugging
+    console.error(`[geminiService] ${path} failed — ${msg}${detail ? ` | Server detail: ${detail}` : ''}`);
+    throw new Error(detail || msg);   // surface real error to caller
   }
 
   return data as T;

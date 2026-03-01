@@ -11,7 +11,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const getModel = () => genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+const getModel = () => genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
 // Build a safe generateContent call using the object API (more compatible than string shorthand)
 const callGemini = async (text) => {
