@@ -15,9 +15,22 @@ const app = express();
 // ─── Security Middleware ──────────────────────────────────────────
 app.use(helmet()); // Adds secure HTTP headers
 
-// CORS — restrict to frontend origin
+// CORS — allow frontend origins (dev + production)
+const allowedOrigins = [
+    process.env.FRONTEND_URL,  // e.g. https://your-app.vercel.app
+    'http://localhost:3000',
+    'http://localhost:5173',
+].filter(Boolean);
+
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+        // Allow requests with no origin (e.g. mobile apps, Postman, curl)
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error(`CORS: origin '${origin}' not allowed`));
+        }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
@@ -58,6 +71,10 @@ const authLimiter = rateLimit({
 app.use(generalLimiter);
 
 // ─── Routes ───────────────────────────────────────────────────────
+// Public Gemini AI routes (no auth required) — /api/chat, /api/brainstorm, /api/analyze, /api/tasks/ai
+app.use('/api', aiLimiter, require('./routes/ai.routes'));
+
+// Authenticated routes
 app.use('/api/auth', authLimiter, require('./routes/auth.routes'));
 app.use('/api/ai', aiLimiter, require('./routes/chat.routes'));
 app.use('/api/files', require('./routes/file.routes'));
