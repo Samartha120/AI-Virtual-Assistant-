@@ -1,0 +1,83 @@
+/// <reference types="vite/client" />
+/**
+ * apiClient.ts
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Centralised HTTP client for all backend REST API calls.
+ *
+ * Base URL is driven exclusively by the VITE_API_URL environment variable:
+ *   • .env          → https://nexsus-ai.onrender.com   (production default)
+ *   • .env.local    → http://localhost:5000             (local dev override)
+ *
+ * Usage:
+ *   import { api } from '@/src/services/apiClient';
+ *   const data = await api.get('/chat');
+ *   const resp = await api.post('/tasks', { title: 'New task' });
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
+const BASE_URL: string =
+    import.meta.env.VITE_API_URL ?? 'https://nexsus-ai.onrender.com';
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function getAuthHeaders(): Record<string, string> {
+    const token = localStorage.getItem('sb-access-token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function handleResponse<T>(response: Response): Promise<T> {
+    if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(
+            `API Error ${response.status} ${response.statusText}: ${errorBody}`
+        );
+    }
+    // Return null for 204 No Content responses
+    if (response.status === 204) return null as T;
+    return response.json() as Promise<T>;
+}
+
+// ── Core request helper ───────────────────────────────────────────────────────
+
+async function request<T>(
+    method: string,
+    path: string,
+    body?: unknown
+): Promise<T> {
+    const url = `${BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
+
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+    };
+
+    const response = await fetch(url, {
+        method,
+        headers,
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+
+    return handleResponse<T>(response);
+}
+
+// ── Public API object ─────────────────────────────────────────────────────────
+
+export const api = {
+    /** GET  /api/<path> */
+    get: <T>(path: string) => request<T>('GET', path),
+
+    /** POST /api/<path> with JSON body */
+    post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
+
+    /** PUT  /api/<path> with JSON body */
+    put: <T>(path: string, body?: unknown) => request<T>('PUT', path, body),
+
+    /** PATCH /api/<path> with JSON body */
+    patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body),
+
+    /** DELETE /api/<path> */
+    delete: <T>(path: string) => request<T>('DELETE', path),
+};
+
+/** Convenience: exposes the resolved base URL for debugging */
+export const API_BASE_URL = BASE_URL;
