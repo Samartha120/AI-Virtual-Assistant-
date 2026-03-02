@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage as IChatMessage } from '../../types';
-import { askNexus } from '../../services/geminiService';
+import { askNexus, getChatHistory } from '../../services/geminiService';
 import { ChatHeader } from '../../components/chat/ChatHeader';
 import { ChatMessage } from '../../components/chat/ChatMessage';
 import { ChatInput } from '../../components/chat/ChatInput';
@@ -18,6 +18,28 @@ const ChatInterface: React.FC = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isStreaming]);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        setIsLoading(true);
+        const history = await getChatHistory();
+        if (history && history.length > 0) {
+          const mappedHistory: IChatMessage[] = history.map((msg: any) => ({
+            role: msg.role === 'assistant' ? 'model' : 'user',
+            text: msg.content,
+            timestamp: msg.created_at ? new Date(msg.created_at).getTime() : Date.now()
+          }));
+          setMessages(mappedHistory);
+        }
+      } catch (error) {
+        console.error("Failed to load chat history:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchHistory();
+  }, []);
 
   const simulateStreaming = async (fullText: string) => {
     setIsStreaming(true);

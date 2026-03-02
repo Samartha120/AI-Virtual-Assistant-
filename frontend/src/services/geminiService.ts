@@ -12,30 +12,11 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'https://nexsus-ai.onrender.com';
-
-// ── Internal fetch helper ─────────────────────────────────────────────────────
-async function callBackend<T>(path: string, body: Record<string, unknown>): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok || !data.success) {
-    const msg = data?.error ?? `Backend error ${response.status}`;
-    const detail = data?.detail ?? '';
-    // Log full server-side error for debugging
-    console.error(`[geminiService] ${path} failed — ${msg}${detail ? ` | Server detail: ${detail}` : ''}`);
-    throw new Error(detail || msg);   // surface real error to caller
-  }
-
-  return data as T;
-}
+import { api } from './apiClient';
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ── Core request helper ───────────────────────────────────────────────────────
+// We now rely on apiClient.ts which safely injects the sb-access-token!
 // askNexus — used by ChatInterface.tsx
 // ─────────────────────────────────────────────────────────────────────────────
 export const askNexus = async (
@@ -43,8 +24,17 @@ export const askNexus = async (
   _context?: string,
   _useSearch: boolean = false
 ): Promise<string> => {
-  const data = await callBackend<{ reply: string }>('/api/chat', { message: prompt });
-  return data.reply;
+  const response = await api.post<{ data: { reply: string, messageId: string, role: string } }>('/api/ai/chat', { message: prompt });
+  return response.data?.reply || "";
+};
+
+export const getChatHistory = async (): Promise<any[]> => {
+  const response = await api.get<{ data: any[] }>('/api/ai/history');
+  return response.data || [];
+};
+
+export const clearChatHistory = async (): Promise<void> => {
+  await api.delete('/api/ai/history');
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -54,8 +44,8 @@ export const brainstormIdeas = async (
   topic: string,
   _context?: string
 ): Promise<string> => {
-  const data = await callBackend<{ ideas: string }>('/api/brainstorm', { topic });
-  return data.ideas;
+  const response = await api.post<{ ideas: string }>('/api/brainstorm', { topic });
+  return response.ideas || "";
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -66,20 +56,20 @@ export const analyzeDocument = async (
   text: string,
   _context?: string
 ): Promise<string> => {
-  const data = await callBackend<{ result: unknown }>('/api/analyze', { text });
+  const response = await api.post<{ result: unknown }>('/api/analyze', { text });
   // Return as JSON string because DocumentAnalyzer.tsx calls JSON.parse() on the result
-  return JSON.stringify(data.result);
+  return JSON.stringify(response.result);
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // generateTaskAnalysis — used by TaskBoard.tsx (AI Optimize button)
 // ─────────────────────────────────────────────────────────────────────────────
 export const generateTaskAnalysis = async (tasks: string): Promise<string> => {
-  const data = await callBackend<{ advice: string }>('/api/tasks/ai', {
+  const response = await api.post<{ advice: string }>('/api/tasks/ai', {
     action: 'analyze',
     tasks,
   });
-  return data.advice;
+  return response.advice || "";
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -88,11 +78,11 @@ export const generateTaskAnalysis = async (tasks: string): Promise<string> => {
 export const decomposeTask = async (
   task: string
 ): Promise<{ title: string; priority: 'low' | 'medium' | 'high' }[]> => {
-  const data = await callBackend<{
+  const response = await api.post<{
     subtasks: { title: string; priority: 'low' | 'medium' | 'high' }[];
   }>('/api/tasks/ai', {
     action: 'decompose',
     taskTitle: task,
   });
-  return data.subtasks;
+  return response.subtasks || [];
 };

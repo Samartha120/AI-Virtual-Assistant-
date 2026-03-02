@@ -10,4 +10,6 @@ export {
   analyzeDocument,
   generateTaskAnalysis,
   decomposeTask,
+  getChatHistory,
+  clearChatHistory,
 } from '../src/services/geminiService';
