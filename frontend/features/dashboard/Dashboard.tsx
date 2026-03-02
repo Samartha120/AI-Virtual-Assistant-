@@ -140,7 +140,7 @@ const Dashboard: React.FC = () => {
           {/* Quick Actions */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <motion.div variants={item} onClick={() => setCurrentView(AppView.CHAT)} className="cursor-pointer">
-              <Card hoverEffect className="h-full flex flex-col justify-between min-h-[160px] bg-gradient-to-br from-surface to-[#0f1115]">
+              <Card hoverEffect className="h-full flex flex-col justify-between min-h-[160px] bg-linear-to-br from-surface to-background">
                 <div className="p-2 w-fit rounded-lg bg-primary/20 text-primary mb-4">
                   <MessageSquare size={24} />
                 </div>
@@ -152,7 +152,7 @@ const Dashboard: React.FC = () => {
             </motion.div>
 
             <motion.div variants={item} onClick={() => setCurrentView(AppView.DOC_ANALYZER)} className="cursor-pointer">
-              <Card hoverEffect className="h-full flex flex-col justify-between min-h-[160px] bg-gradient-to-br from-surface to-[#0f1115]">
+              <Card hoverEffect className="h-full flex flex-col justify-between min-h-[160px] bg-linear-to-br from-surface to-background">
                 <div className="p-2 w-fit rounded-lg bg-blue-500/20 text-blue-400 mb-4">
                   <FileText size={24} />
                 </div>
@@ -164,7 +164,7 @@ const Dashboard: React.FC = () => {
             </motion.div>
 
             <motion.div variants={item} onClick={() => setCurrentView(AppView.BRAINSTORMER)} className="cursor-pointer">
-              <Card hoverEffect className="h-full flex flex-col justify-between min-h-[160px] bg-gradient-to-br from-surface to-[#0f1115]">
+              <Card hoverEffect className="h-full flex flex-col justify-between min-h-[160px] bg-linear-to-br from-surface to-background">
                 <div className="p-2 w-fit rounded-lg bg-amber-500/20 text-amber-400 mb-4">
                   <Zap size={24} />
                 </div>
@@ -248,7 +248,7 @@ const Dashboard: React.FC = () => {
 
           {/* AI Status */}
           <motion.div variants={item}>
-            <Card className="p-6 bg-gradient-to-b from-primary/10 to-transparent border-primary/20">
+            <Card className="p-6 bg-linear-to-b from-primary/10 to-transparent border-primary/20">
               <div className="flex items-center gap-3 mb-2">
                 <Zap className="text-primary fill-primary" size={20} />
                 <h3 className="font-bold text-white">AI Capabilities</h3>

@@ -107,7 +107,7 @@ const ChatInterface: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#0f1115] relative overflow-hidden">
+    <div className="flex flex-col h-full bg-background relative overflow-hidden">
       <ChatHeader />
 
       <div className="flex-1 overflow-y-auto px-4 py-6 scroll-smooth custom-scrollbar">
