@@ -59,7 +59,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
               exit={{ opacity: 0 }}
               className="flex items-center space-x-3"
             >
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-primary to-blue-500 shadow-lg shadow-primary/30 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-linear-to-tr from-primary to-blue-500 shadow-lg shadow-primary/30 flex items-center justify-center">
                 <span className="font-bold text-white">N</span>
               </div>
               <div>
@@ -72,7 +72,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="w-8 h-8 mx-auto rounded-lg bg-gradient-to-tr from-primary to-blue-500 shadow-lg shadow-primary/30 flex items-center justify-center"
+              className="w-8 h-8 mx-auto rounded-lg bg-linear-to-tr from-primary to-blue-500 shadow-lg shadow-primary/30 flex items-center justify-center"
             >
               <span className="font-bold text-white">N</span>
             </motion.div>
@@ -117,7 +117,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
 
               {/* Tooltip for collapsed state */}
               {isCollapsed && (
-                <div className="absolute left-full ml-4 px-3 py-2 bg-gray-900/90 backdrop-blur-md text-xs font-medium text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0 whitespace-nowrap z-[60] pointer-events-none border border-white/10 shadow-xl">
+                <div className="absolute left-full ml-4 px-3 py-2 bg-gray-900/90 backdrop-blur-md text-xs font-medium text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0 whitespace-nowrap z-60 pointer-events-none border border-white/10 shadow-xl">
                   {item.label}
                   {/* Arrow for tooltip */}
                   <div className="absolute top-1/2 -left-1 -mt-1 border-4 border-transparent border-r-gray-900/90" />
@@ -139,7 +139,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
             </div>
           )}
           {isCollapsed && (
-            <div className="absolute left-full ml-4 px-3 py-2 bg-gray-900/90 backdrop-blur-md text-xs font-medium text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0 whitespace-nowrap z-[60] pointer-events-none border border-white/10 shadow-xl">
+            <div className="absolute left-full ml-4 px-3 py-2 bg-gray-900/90 backdrop-blur-md text-xs font-medium text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0 whitespace-nowrap z-60 pointer-events-none border border-white/10 shadow-xl">
               Profile
               <div className="absolute top-1/2 -left-1 -mt-1 border-4 border-transparent border-r-gray-900/90" />
             </div>
@@ -150,8 +150,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
           <button
             onClick={() => onViewChange(AppView.SETTINGS)}
             className={`w-full flex items-center p-3 rounded-xl transition-all duration-200 group relative ${activeView === AppView.SETTINGS
-                ? 'bg-primary/10 text-white shadow-lg shadow-primary/10'
-                : 'hover:bg-white/5 text-gray-400 hover:text-white'
+              ? 'bg-primary/10 text-white shadow-lg shadow-primary/10'
+              : 'hover:bg-white/5 text-gray-400 hover:text-white'
               } ${isCollapsed ? 'justify-center' : ''}`}
           >
             {activeView === AppView.SETTINGS && (
@@ -163,7 +163,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
             <Settings size={20} className={`relative z-10 transition-colors ${activeView === AppView.SETTINGS ? 'text-primary' : 'group-hover:text-primary'}`} />
             {!isCollapsed && <span className={`ml-4 text-sm font-medium relative z-10 ${activeView === AppView.SETTINGS ? 'text-white' : ''}`}>Settings</span>}
             {isCollapsed && (
-              <div className="absolute left-full ml-4 px-3 py-2 bg-gray-900/90 backdrop-blur-md text-xs font-medium text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0 whitespace-nowrap z-[60] pointer-events-none border border-white/10 shadow-xl">
+              <div className="absolute left-full ml-4 px-3 py-2 bg-gray-900/90 backdrop-blur-md text-xs font-medium text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0 whitespace-nowrap z-60 pointer-events-none border border-white/10 shadow-xl">
                 Settings
                 <div className="absolute top-1/2 -left-1 -mt-1 border-4 border-transparent border-r-gray-900/90" />
               </div>
@@ -173,7 +173,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
             <LogOut size={20} />
             {!isCollapsed && <span className="ml-4 text-sm font-medium">Logout</span>}
             {isCollapsed && (
-              <div className="absolute left-full ml-4 px-3 py-2 bg-gray-900/90 backdrop-blur-md text-xs font-medium text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0 whitespace-nowrap z-[60] pointer-events-none border border-white/10 shadow-xl">
+              <div className="absolute left-full ml-4 px-3 py-2 bg-gray-900/90 backdrop-blur-md text-xs font-medium text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0 whitespace-nowrap z-60 pointer-events-none border border-white/10 shadow-xl">
                 Logout
                 <div className="absolute top-1/2 -left-1 -mt-1 border-4 border-transparent border-r-gray-900/90" />
               </div>

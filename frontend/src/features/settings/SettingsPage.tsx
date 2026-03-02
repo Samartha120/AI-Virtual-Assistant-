@@ -202,7 +202,7 @@ const SettingsPage: React.FC = () => {
                                                     className={`p-4 rounded-xl border cursor-pointer transition-all flex items-start space-x-4 ${aiModel === model.id ? 'bg-primary/10 border-primary/50' : 'bg-black/20 border-white/10 hover:bg-white/5'
                                                         }`}
                                                 >
-                                                    <div className={`mt-1 flex-shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center ${aiModel === model.id ? 'border-primary' : 'border-gray-500'
+                                                    <div className={`mt-1 shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center ${aiModel === model.id ? 'border-primary' : 'border-gray-500'
                                                         }`}>
                                                         {aiModel === model.id && <div className="w-2 h-2 rounded-full bg-primary" />}
                                                     </div>
