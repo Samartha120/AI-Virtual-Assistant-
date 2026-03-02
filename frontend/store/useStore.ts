@@ -8,10 +8,14 @@ interface AppState {
     theme: 'dark' | 'light';
     aiModel: string;
     notificationsEnabled: boolean;
+    isAuthenticated: boolean;
+    user: any | null;
     isLoadingSettings: boolean;
     setCurrentView: (view: AppView) => void;
     toggleSidebar: () => void;
     setTheme: (theme: 'dark' | 'light') => void;
+    login: (user: any) => void;
+    logout: () => void;
     setAiModel: (model: string) => void;
     setNotificationsEnabled: (enabled: boolean) => void;
     fetchSettings: () => Promise<void>;
@@ -25,9 +29,19 @@ export const useStore = create<AppState>((set, get) => ({
     aiModel: 'gemini-1.5-pro',
     notificationsEnabled: true,
     isLoadingSettings: false,
+    isAuthenticated: false,
+    user: null,
     setCurrentView: (view) => set({ currentView: view }),
     toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
-    setTheme: (theme) => set({ theme }),
+    setTheme: (theme) => {
+        set({ theme });
+        document.documentElement.classList.remove('light', 'dark');
+        document.documentElement.classList.add(theme);
+        // Ensure color scheme corresponds
+        document.documentElement.style.colorScheme = theme;
+    },
+    login: (user) => set({ isAuthenticated: true, user }),
+    logout: () => set({ isAuthenticated: false, user: null }),
     setAiModel: (aiModel) => set({ aiModel }),
     setNotificationsEnabled: (notificationsEnabled) => set({ notificationsEnabled }),
 
@@ -42,6 +56,11 @@ export const useStore = create<AppState>((set, get) => ({
                     aiModel: s.ai_model || 'gemini-1.5-pro',
                     notificationsEnabled: s.notifications ?? true
                 });
+                // Apply theme immediately after fetching
+                const fetchedTheme = s.theme || 'dark';
+                document.documentElement.classList.remove('light', 'dark');
+                document.documentElement.classList.add(fetchedTheme);
+                document.documentElement.style.colorScheme = fetchedTheme;
             }
         } catch (error) {
             console.error('Failed to fetch settings:', error);

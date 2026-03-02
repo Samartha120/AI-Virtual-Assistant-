@@ -19,7 +19,7 @@ const SettingsPage: React.FC = () => {
     console.log("SettingsPage component mounting/rendering");
     const {
         theme, setTheme, aiModel, setAiModel, notificationsEnabled, setNotificationsEnabled,
-        fetchSettings, saveSettings, isLoadingSettings
+        fetchSettings, saveSettings, isLoadingSettings, user
     } = useStore();
 
     const [activeTab, setActiveTab] = useState<'profile' | 'appearance' | 'ai' | 'notifications'>('profile');
@@ -141,7 +141,9 @@ const SettingsPage: React.FC = () => {
                                             <label className="text-sm font-medium text-gray-400">Display Name</label>
                                             <input
                                                 type="text"
-                                                defaultValue="Nexus User"
+                                                readOnly
+                                                disabled
+                                                defaultValue={user?.user_metadata?.full_name || 'Nexus User'}
                                                 className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-primary/50 transition-colors"
                                             />
                                         </div>
@@ -149,7 +151,9 @@ const SettingsPage: React.FC = () => {
                                             <label className="text-sm font-medium text-gray-400">Email Address</label>
                                             <input
                                                 type="email"
-                                                defaultValue="user@nexusai.enterprise"
+                                                readOnly
+                                                disabled
+                                                defaultValue={user?.email || 'user@nexusai.enterprise'}
                                                 className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-primary/50 transition-colors"
                                             />
                                         </div>
@@ -195,8 +199,8 @@ const SettingsPage: React.FC = () => {
                                         <h3 className="text-sm font-medium text-gray-400">Default Model</h3>
                                         <div className="space-y-3">
                                             {[
-                                                { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', desc: 'Most capable, best for complex tasks.' },
-                                                { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', desc: 'Fastest, best for high-frequency queries.' },
+                                                { id: 'nexus-pro', name: 'Nexus Pro', desc: 'Most capable, best for complex tasks.' },
+                                                { id: 'nexus-flash', name: 'Nexus Flash', desc: 'Fastest, best for high-frequency queries.' },
                                             ].map(model => (
                                                 <div
                                                     key={model.id}

@@ -24,6 +24,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { user, logout } = useStore();
 
   const menuItems = [
     { id: AppView.DASHBOARD, label: 'Command Center', icon: LayoutDashboard },
@@ -134,7 +135,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
           <NeuralAvatar state="idle" size="sm" className={isCollapsed ? "" : "mr-3"} />
           {!isCollapsed && (
             <div className="overflow-hidden">
-              <div className="text-sm font-medium text-white">Nexus User</div>
+              <div className="text-sm font-medium text-white truncate w-40">{user?.user_metadata?.full_name || user?.email || 'Nexus User'}</div>
               <div className="text-[10px] text-emerald-400">Online</div>
             </div>
           )}
@@ -169,7 +170,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
               </div>
             )}
           </button>
-          <button className={`w-full flex items-center p-3 rounded-xl hover:bg-red-500/10 text-gray-400 hover:text-red-400 transition-colors ${isCollapsed ? 'justify-center' : ''} group relative`}>
+          <button
+            onClick={logout}
+            className={`w-full flex items-center p-3 rounded-xl hover:bg-red-500/10 text-gray-400 hover:text-red-400 transition-colors ${isCollapsed ? 'justify-center' : ''} group relative`}
+          >
             <LogOut size={20} />
             {!isCollapsed && <span className="ml-4 text-sm font-medium">Logout</span>}
             {isCollapsed && (

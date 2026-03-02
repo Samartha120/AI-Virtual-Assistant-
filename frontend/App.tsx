@@ -10,11 +10,11 @@ import Brainstormer from './features/brainstormer/Brainstormer';
 import TaskBoard from './features/tasks/TaskBoard';
 import KnowledgeBase from './features/knowledge/KnowledgeBase';
 import ChatInterface from './features/chat/ChatInterface';
-
 import SettingsPage from './features/settings/SettingsPage';
+import AuthPage from './features/auth/AuthPage';
 
 const App: React.FC = () => {
-  const { currentView, setCurrentView } = useStore();
+  const { currentView, setCurrentView, isAuthenticated } = useStore();
 
   const renderView = () => {
     console.log("App renderView executing. currentView is:", currentView);
@@ -42,6 +42,10 @@ const App: React.FC = () => {
         return <Dashboard />;
     }
   };
+
+  if (!isAuthenticated) {
+    return <AuthPage />;
+  }
 
   return (
     <Shell>
