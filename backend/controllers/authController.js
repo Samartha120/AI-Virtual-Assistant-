@@ -69,8 +69,36 @@ const googleAuth = async (req, res) => {
     });
 };
 
+const verifyOtp = async (req, res) => {
+    try {
+        const { email, token } = req.body;
+
+        if (!email || !token) {
+            return errorResponse(res, 400, 'Email and OTP token are required');
+        }
+
+        const { data, error } = await supabase.auth.verifyOtp({
+            email,
+            token,
+            type: 'signup'
+        });
+
+        if (error) {
+            return errorResponse(res, 401, error.message);
+        }
+
+        successResponse(res, 'OTP verification successful', {
+            session: data.session,
+            user: data.user
+        });
+    } catch (err) {
+        errorResponse(res, 500, 'OTP verification failed', err.message);
+    }
+};
+
 module.exports = {
     signup,
     login,
-    googleAuth
+    googleAuth,
+    verifyOtp
 };
