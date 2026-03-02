@@ -6,7 +6,8 @@ export enum AppView {
   DOC_ANALYZER = 'docs',
   BRAINSTORMER = 'brainstorm',
   TASKS = 'tasks',
-  KNOWLEDGE_BASE = 'knowledge'
+  KNOWLEDGE_BASE = 'knowledge',
+  SETTINGS = 'settings'
 }
 
 export interface Task {

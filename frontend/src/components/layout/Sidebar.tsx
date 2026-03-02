@@ -147,9 +147,21 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
         </div>
 
         <div className="space-y-1">
-          <button className={`w-full flex items-center p-3 rounded-xl hover:bg-white/5 text-gray-400 hover:text-white transition-colors ${isCollapsed ? 'justify-center' : ''} group relative`}>
-            <Settings size={20} className="group-hover:text-primary transition-colors" />
-            {!isCollapsed && <span className="ml-4 text-sm font-medium">Settings</span>}
+          <button
+            onClick={() => onViewChange(AppView.SETTINGS)}
+            className={`w-full flex items-center p-3 rounded-xl transition-all duration-200 group relative ${activeView === AppView.SETTINGS
+                ? 'bg-primary/10 text-white shadow-lg shadow-primary/10'
+                : 'hover:bg-white/5 text-gray-400 hover:text-white'
+              } ${isCollapsed ? 'justify-center' : ''}`}
+          >
+            {activeView === AppView.SETTINGS && (
+              <motion.div
+                layoutId="activeTabBottom"
+                className="absolute inset-0 bg-primary/10 rounded-xl border border-primary/20"
+              />
+            )}
+            <Settings size={20} className={`relative z-10 transition-colors ${activeView === AppView.SETTINGS ? 'text-primary' : 'group-hover:text-primary'}`} />
+            {!isCollapsed && <span className={`ml-4 text-sm font-medium relative z-10 ${activeView === AppView.SETTINGS ? 'text-white' : ''}`}>Settings</span>}
             {isCollapsed && (
               <div className="absolute left-full ml-4 px-3 py-2 bg-gray-900/90 backdrop-blur-md text-xs font-medium text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0 whitespace-nowrap z-[60] pointer-events-none border border-white/10 shadow-xl">
                 Settings
