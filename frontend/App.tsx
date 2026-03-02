@@ -11,10 +11,16 @@ import TaskBoard from './features/tasks/TaskBoard';
 import KnowledgeBase from './features/knowledge/KnowledgeBase';
 import ChatInterface from './features/chat/ChatInterface';
 
+import SettingsPage from './features/settings/SettingsPage';
+
 const App: React.FC = () => {
   const { currentView, setCurrentView } = useStore();
 
   const renderView = () => {
+    console.log("App renderView executing. currentView is:", currentView);
+    if (currentView === AppView.SETTINGS) {
+      console.log("Rendering SettingsPage!");
+    }
     switch (currentView) {
       case AppView.DASHBOARD:
         return <Dashboard />;
@@ -30,6 +36,8 @@ const App: React.FC = () => {
         return <TaskBoard />;
       case AppView.KNOWLEDGE_BASE:
         return <KnowledgeBase />;
+      case AppView.SETTINGS:
+        return <SettingsPage />;
       default:
         return <Dashboard />;
     }

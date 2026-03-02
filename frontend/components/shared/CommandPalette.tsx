@@ -29,7 +29,7 @@ export const CommandPalette = () => {
 
     return (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-[20vh] bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="w-full max-w-2xl overflow-hidden rounded-xl border border-white/10 bg-[#0f1115]/90 shadow-2xl backdrop-blur-xl animate-in zoom-in-95 duration-200">
+            <div className="w-full max-w-2xl overflow-hidden rounded-xl border border-white/10 bg-background/90 shadow-2xl backdrop-blur-xl animate-in zoom-in-95 duration-200">
                 <Command className="w-full bg-transparent text-white">
                     <div className="flex items-center border-b border-white/10 px-4" cmdk-input-wrapper="">
                         <Search className="mr-2 h-5 w-5 shrink-0 opacity-50" />
@@ -70,7 +70,7 @@ export const CommandPalette = () => {
                             <CommandItem
                                 icon={<Settings className="mr-2 h-4 w-4" />}
                                 label="Settings"
-                                onSelect={() => runCommand(() => console.log('Settings'))}
+                                onSelect={() => runCommand(() => setCurrentView(AppView.SETTINGS))}
                             />
                             <CommandItem
                                 icon={<User className="mr-2 h-4 w-4" />}
