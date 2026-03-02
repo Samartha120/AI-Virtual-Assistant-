@@ -178,7 +178,7 @@ const AuthPage: React.FC = () => {
                                     <button
                                         type="button"
                                         onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-2 top-[50%] -translate-y-[50%] p-2 text-gray-500 hover:text-white transition-colors flex items-center justify-center"
+                                        className="absolute right-3 top-[50%] -translate-y-1/2 text-gray-500 hover:text-white transition-colors flex items-center justify-center p-1"
                                     >
                                         {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                     </button>
