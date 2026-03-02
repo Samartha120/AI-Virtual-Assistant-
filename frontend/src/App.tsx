@@ -17,6 +17,10 @@ const App: React.FC = () => {
   const { currentView, setCurrentView } = useStore();
 
   const renderView = () => {
+    console.log("App renderView executing. currentView is:", currentView);
+    if (currentView === AppView.SETTINGS) {
+      console.log("Rendering SettingsPage!");
+    }
     switch (currentView) {
       case AppView.DASHBOARD:
         return <Dashboard />;

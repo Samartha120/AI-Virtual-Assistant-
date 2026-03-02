@@ -16,6 +16,7 @@ import {
 import { NeuralAvatar } from '../../components/ui/NeuralAvatar';
 
 const SettingsPage: React.FC = () => {
+    console.log("SettingsPage component mounting/rendering");
     const {
         theme, setTheme, aiModel, setAiModel, notificationsEnabled, setNotificationsEnabled,
         fetchSettings, saveSettings, isLoadingSettings
@@ -26,6 +27,7 @@ const SettingsPage: React.FC = () => {
     const [saveSuccess, setSaveSuccess] = useState(false);
 
     useEffect(() => {
+        console.log("SettingsPage useEffect triggered, calling fetchSettings");
         fetchSettings();
     }, [fetchSettings]);
 
