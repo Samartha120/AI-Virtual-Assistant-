@@ -14,7 +14,7 @@ interface AppState {
     setCurrentView: (view: AppView) => void;
     toggleSidebar: () => void;
     setTheme: (theme: 'dark' | 'light') => void;
-    login: (user: any) => void;
+    login: (user: any, token: string) => void;
     logout: () => void;
     setAiModel: (model: string) => void;
     setNotificationsEnabled: (enabled: boolean) => void;
@@ -40,8 +40,14 @@ export const useStore = create<AppState>((set, get) => ({
         // Ensure color scheme corresponds
         document.documentElement.style.colorScheme = theme;
     },
-    login: (user) => set({ isAuthenticated: true, user }),
-    logout: () => set({ isAuthenticated: false, user: null }),
+    login: (user, token) => {
+        localStorage.setItem('sb-access-token', token);
+        set({ isAuthenticated: true, user });
+    },
+    logout: () => {
+        localStorage.removeItem('sb-access-token');
+        set({ isAuthenticated: false, user: null });
+    },
     setAiModel: (aiModel) => set({ aiModel }),
     setNotificationsEnabled: (notificationsEnabled) => set({ notificationsEnabled }),
 

@@ -14,27 +14,34 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { useStore } from '../../store/useStore';
 import { AppView } from '../../types';
-import { storage } from '../../services/storageService';
+import { dashboardService } from '../../src/services/dashboardService';
 
 const Dashboard: React.FC = () => {
   const { setCurrentView } = useStore();
   const [stats, setStats] = useState({
     tasksPending: 0,
-    tasksCompleted: 0,
+    chatMessages: 0,
     knowledgeDocs: 0,
-    ideasGenerated: 0 // Placeholder or generic
+    ideasGenerated: 12
   });
 
   useEffect(() => {
-    const tasks = storage.getTasks() || [];
-    const knowledge = storage.getKnowledge() || [];
-
-    setStats({
-      tasksPending: tasks.filter(t => t.status !== 'done').length,
-      tasksCompleted: tasks.filter(t => t.status === 'done').length,
-      knowledgeDocs: knowledge.length,
-      ideasGenerated: 12 // Hardcoded for now or fetch from somewhere if we saved them
-    });
+    const fetchDashboardStats = async () => {
+      try {
+        const resp = await dashboardService.getStats();
+        if (resp && resp.data && resp.data.stats) {
+          setStats({
+            tasksPending: resp.data.stats.totalTasks || 0,
+            chatMessages: resp.data.stats.totalMessages || 0,
+            knowledgeDocs: resp.data.stats.totalKnowledgeItems || 0,
+            ideasGenerated: 12
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch backend stats:", error);
+      }
+    };
+    fetchDashboardStats();
   }, []);
 
   const container = {
@@ -110,11 +117,11 @@ const Dashboard: React.FC = () => {
 
         <Card className="p-5 flex items-center justify-between group hover:border-blue-500/30 transition-colors">
           <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Tasks Done</p>
-            <h3 className="text-2xl font-bold text-white group-hover:text-blue-400 transition-colors">{stats.tasksCompleted} Completed</h3>
+            <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Neural Chats</p>
+            <h3 className="text-2xl font-bold text-white group-hover:text-blue-400 transition-colors">{stats.chatMessages} Messages</h3>
           </div>
           <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
-            <Activity size={20} />
+            <MessageSquare size={20} />
           </div>
         </Card>
 

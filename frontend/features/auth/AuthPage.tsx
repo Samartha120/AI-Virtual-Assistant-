@@ -24,7 +24,7 @@ const AuthPage: React.FC = () => {
             if (isLogin) {
                 const response = await api.post<any>('/api/auth/login', { email, password });
                 if (response.data && response.data.data) {
-                    login(response.data.data.user);
+                    login(response.data.data.user, response.data.data.session.access_token);
                 }
             } else {
                 const response = await api.post<any>('/api/auth/signup', { email, password, full_name: fullName });
@@ -68,7 +68,7 @@ const AuthPage: React.FC = () => {
         try {
             const response = await api.post<any>('/api/auth/verify-otp', { email, token: otp });
             if (response.data && response.data.data) {
-                login(response.data.data.user);
+                login(response.data.data.user, response.data.data.session.access_token);
             }
         } catch (err: any) {
             let message = "Invalid Verification Code.";
