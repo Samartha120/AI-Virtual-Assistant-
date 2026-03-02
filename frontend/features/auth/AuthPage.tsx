@@ -29,15 +29,9 @@ const AuthPage: React.FC = () => {
             } else {
                 const response = await api.post<any>('/api/auth/signup', { email, password, full_name: fullName });
                 if (response.data && response.data.data) {
-                    // Signup typically requires email verification, but for this demo workflow, 
-                    // if signup returns a user object or a session, we log them in. 
-                    // Adjust according to Supabase config. (Assuming auto-login here if session present, else prompt to verify).
-                    if (response.data.data.session) {
-                        login(response.data.data.user);
-                    } else {
-                        setError("Signup successful! Please enter the 6-digit code sent to your email.");
-                        setIsVerifyingOtp(true);
-                    }
+                    // Always enforce OTP check on signup
+                    setError(null); // Clear any previous errors
+                    setIsVerifyingOtp(true);
                 }
             }
         } catch (err: any) {
@@ -58,15 +52,8 @@ const AuthPage: React.FC = () => {
                 message = err.message;
             }
 
-            // Fallback for demonstration / local testing when Supabase fails
-            console.warn("Backend auth failed, falling back to local demo auth.", message);
-            login({
-                id: 'demo-user-id',
-                email: email,
-                user_metadata: {
-                    full_name: fullName || email.split('@')[0]
-                }
-            });
+            // No fallback - we want real authentication only
+            setError(message);
 
         } finally {
             setIsLoading(false);
