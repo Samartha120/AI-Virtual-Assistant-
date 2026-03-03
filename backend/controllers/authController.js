@@ -119,25 +119,28 @@ const verifyOtp = async (req, res) => {
 
 const resendOtp = async (req, res) => {
     try {
-        const { email } = req.body;
+        const { email, password } = req.body;
 
-        if (!email) {
-            return errorResponse(res, 400, 'Email is required');
+        if (!email || !password) {
+            return errorResponse(res, 400, 'Email and password are required to resend code');
         }
 
-        const { error } = await supabaseAuth.auth.resend({
-            type: 'signup',
+        // auth.resend() with type:'signup' silently fails for OTP flows.
+        // Calling signUp() again on an unconfirmed email is the reliable way:
+        // Supabase will resend the OTP without creating a duplicate user.
+        const { error } = await supabaseAuth.auth.signUp({
             email,
+            password,
         });
 
         if (error) {
             if (error.status === 429 || error.message.toLowerCase().includes('rate limit')) {
-                return errorResponse(res, 429, 'Too many resend requests. Please wait before trying again.');
+                return errorResponse(res, 429, 'Please wait a minute before requesting a new code.');
             }
             return errorResponse(res, 400, error.message);
         }
 
-        successResponse(res, 'Verification code resent successfully. Please check your email.');
+        successResponse(res, 'Verification code resent. Please check your email.');
     } catch (err) {
         errorResponse(res, 500, 'Failed to resend verification code', err.message);
     }

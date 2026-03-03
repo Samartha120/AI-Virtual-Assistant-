@@ -46,15 +46,22 @@ const AuthPage: React.FC = () => {
                 }
             } else {
                 const response = await api.post<any>('/api/auth/signup', { email, password, full_name: fullName });
+                console.log('[SIGNUP] Raw response:', response);
                 if (response.success && response.data) {
+                    console.log('[SIGNUP] requiresEmailVerification:', response.data.requiresEmailVerification, '| session:', !!response.data.session);
                     if (response.data.requiresEmailVerification) {
                         // Email confirmation ON → show OTP screen
                         setError(null);
                         setIsVerifyingOtp(true);
                     } else if (response.data.session) {
                         // Email confirmation OFF → log in directly, no OTP needed
+                        console.log('[SIGNUP] Logging in directly, token:', response.data.session.access_token?.substring(0, 20));
                         login(response.data.user, response.data.session.access_token);
+                    } else {
+                        console.log('[SIGNUP] No session and no requiresEmailVerification — unusual state');
                     }
+                } else {
+                    console.log('[SIGNUP] response.success false or no data:', response);
                 }
             }
         } catch (err: any) {
@@ -98,8 +105,22 @@ const AuthPage: React.FC = () => {
 
         try {
             const response = await api.post<any>('/api/auth/verify-otp', { email, token: otp });
+            console.log('[OTP] Verify raw response:', response);
             if (response.success && response.data) {
-                login(response.data.user, response.data.session.access_token);
+                const { user, session } = response.data;
+                console.log('[OTP] session:', session, '| user:', user?.email);
+                if (session?.access_token) {
+                    // ✅ OTP verified — log in and redirect to Dashboard
+                    console.log('[OTP] Calling login(), token prefix:', session.access_token.substring(0, 20));
+                    login(user, session.access_token);
+                } else {
+                    // Session missing despite success — shouldn't happen, redirect to login
+                    console.log('[OTP] session is null despite success — showing fallback error');
+                    setError('Verified! Please log in to continue.');
+                    setIsVerifyingOtp(false);
+                }
+            } else {
+                console.log('[OTP] response.success false or no data:', response);
             }
         } catch (err: any) {
             let message = "Invalid Verification Code.";
@@ -129,7 +150,8 @@ const AuthPage: React.FC = () => {
         setError(null);
         setResendSuccess(null);
         try {
-            await api.post<any>('/api/auth/resend-otp', { email });
+            // Send password too so backend can call signUp() again — the only reliable way to resend OTP
+            await api.post<any>('/api/auth/resend-otp', { email, password });
             setResendSuccess('New code sent! Please check your inbox.');
             setResendCooldown(60);
         } catch {
