@@ -22,6 +22,9 @@ const signup = async (req, res) => {
         });
 
         if (error) {
+            if (error.status === 429 || error.message.toLowerCase().includes("rate limit")) {
+                return errorResponse(res, 429, "Email rate limit exceeded. Please wait a few minutes before trying again.");
+            }
             return errorResponse(res, 400, error.message);
         }
 

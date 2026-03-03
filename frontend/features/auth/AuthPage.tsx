@@ -57,6 +57,10 @@ const AuthPage: React.FC = () => {
                 message = "Invalid login credentials. Please ensure your password is correct and your email has been verified.";
             }
 
+            if (message.toLowerCase().includes('rate limit')) {
+                message = "Security check triggered processing emails. Please wait a minute before retrying.";
+            }
+
             // No fallback - we want real authentication only
             setError(message);
 
