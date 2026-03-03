@@ -5,7 +5,6 @@ const signup = async (req, res) => {
     try {
         const { email, password, full_name } = req.body;
 
-        // Input validation
         if (!email || !password) {
             return errorResponse(res, 400, 'Email and password are required');
         }
@@ -28,9 +27,19 @@ const signup = async (req, res) => {
             return errorResponse(res, 400, error.message);
         }
 
-        successResponse(res, 'Signup successful. Please check your email for verification.', {
-            user: data.user
-        });
+        // If Supabase email confirmation is DISABLED, a session is returned immediately
+        // If email confirmation is ENABLED, session is null and user must verify OTP
+        const requiresEmailVerification = !data.session;
+
+        successResponse(res, requiresEmailVerification
+            ? 'Signup successful. Please check your email for your verification code.'
+            : 'Account created successfully.',
+            {
+                user: data.user,
+                session: data.session || null,
+                requiresEmailVerification
+            }
+        );
     } catch (err) {
         errorResponse(res, 500, 'Signup failed', err.message);
     }

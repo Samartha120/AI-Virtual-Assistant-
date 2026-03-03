@@ -47,9 +47,14 @@ const AuthPage: React.FC = () => {
             } else {
                 const response = await api.post<any>('/api/auth/signup', { email, password, full_name: fullName });
                 if (response.success && response.data) {
-                    // Always enforce OTP check on signup
-                    setError(null); // Clear any previous errors
-                    setIsVerifyingOtp(true);
+                    if (response.data.requiresEmailVerification) {
+                        // Email confirmation ON → show OTP screen
+                        setError(null);
+                        setIsVerifyingOtp(true);
+                    } else if (response.data.session) {
+                        // Email confirmation OFF → log in directly, no OTP needed
+                        login(response.data.user, response.data.session.access_token);
+                    }
                 }
             }
         } catch (err: any) {
