@@ -9,7 +9,7 @@ interface ChatHeaderProps {
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({ modelName = 'Nexus-2.0-Flash' }) => {
     return (
-        <div className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-white/10 bg-[#0f1115]/80 px-6 backdrop-blur-xl">
+        <div className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-white/10 bg-background/80 px-6 backdrop-blur-xl">
             <div className="flex items-center gap-3">
                 <NeuralAvatar state="idle" size="sm" />
                 <h2 className="text-lg font-semibold text-white">Neural Chat</h2>
