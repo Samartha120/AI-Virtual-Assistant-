@@ -1,4 +1,4 @@
-const supabase = require('../config/supabase');
+const { supabaseAuth } = require('../config/supabase');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 
 const signup = async (req, res) => {
@@ -13,7 +13,7 @@ const signup = async (req, res) => {
             return errorResponse(res, 400, 'Password must be at least 6 characters');
         }
 
-        const { data, error } = await supabase.auth.signUp({
+        const { data, error } = await supabaseAuth.auth.signUp({
             email,
             password,
             options: {
@@ -45,7 +45,7 @@ const login = async (req, res) => {
             return errorResponse(res, 400, 'Email and password are required');
         }
 
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabaseAuth.auth.signInWithPassword({
             email,
             password
         });
@@ -84,7 +84,7 @@ const verifyOtp = async (req, res) => {
         }
 
         // Supabase 6-digit email OTP uses type: 'email'
-        const { data, error } = await supabase.auth.verifyOtp({
+        const { data, error } = await supabaseAuth.auth.verifyOtp({
             email,
             token,
             type: 'email'
@@ -116,7 +116,7 @@ const resendOtp = async (req, res) => {
             return errorResponse(res, 400, 'Email is required');
         }
 
-        const { error } = await supabase.auth.resend({
+        const { error } = await supabaseAuth.auth.resend({
             type: 'signup',
             email,
         });
