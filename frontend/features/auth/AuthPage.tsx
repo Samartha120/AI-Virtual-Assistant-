@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../../store/useStore';
 import { Mail, Lock, User as UserIcon, Loader2, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { api } from '../../services/apiClient';
+import { supabase } from '../../lib/supabase';
 
 const AuthPage: React.FC = () => {
     const { login } = useStore();
@@ -104,45 +105,37 @@ const AuthPage: React.FC = () => {
         setIsLoading(true);
 
         try {
-            const response = await api.post<any>('/api/auth/verify-otp', { email, token: otp });
-            console.log('[OTP] Verify raw response:', response);
-            if (response.success && response.data) {
-                const { user, session } = response.data;
-                console.log('[OTP] session:', session, '| user:', user?.email);
-                if (session?.access_token) {
-                    // ✅ OTP verified — log in and redirect to Dashboard
-                    console.log('[OTP] Calling login(), token prefix:', session.access_token.substring(0, 20));
-                    login(user, session.access_token);
-                } else {
-                    // Session missing despite success — shouldn't happen, redirect to login
-                    console.log('[OTP] session is null despite success — showing fallback error');
-                    setError('Verified! Please log in to continue.');
-                    setIsVerifyingOtp(false);
-                }
+            // Try 'signup' type first — this is correct for signup confirmation OTPs
+            // 'email' type is for email-change OTPs, which is a different flow
+            let result = await supabase.auth.verifyOtp({ email, token: otp, type: 'signup' });
+
+            // Fallback: try 'email' type if 'signup' fails
+            if (result.error) {
+                console.log('[OTP] type:signup failed, trying type:email. Error:', result.error.message);
+                result = await supabase.auth.verifyOtp({ email, token: otp, type: 'email' });
+            }
+
+            const { data, error } = result;
+            console.log('[OTP] Final result — session:', !!data?.session, 'error:', error?.message);
+
+            if (error) {
+                setError('Code expired or invalid. Click "Resend Code" below to get a fresh one.');
+                return;
+            }
+
+            if (data?.session?.access_token) {
+                console.log('[OTP] Login successful, redirecting to dashboard');
+                login(data.user!, data.session.access_token);
             } else {
-                console.log('[OTP] response.success false or no data:', response);
+                setError('Verification succeeded but no session returned. Please try logging in.');
+                setIsVerifyingOtp(false);
             }
         } catch (err: any) {
-            let message = "Invalid Verification Code.";
-            if (err.message && err.message.includes('{')) {
-                try {
-                    const match = err.message.match(/:\s*({.*})/);
-                    if (match && match[1]) {
-                        const parsed = JSON.parse(match[1]);
-                        message = parsed.message || message;
-                    }
-                } catch { }
-            } else if (err.message) {
-                message = err.message;
-            }
-            // Guide user to resend when token is expired
-            if (message.toLowerCase().includes('expired') || message.toLowerCase().includes('invalid')) {
-                message = 'Code expired or invalid. Click "Resend Code" below to get a fresh one.';
-            }
-            setError(message);
+            setError('Verification failed. Please try again.');
         } finally {
             setIsLoading(false);
         }
+
     };
 
     const handleResendOtp = async () => {
@@ -150,7 +143,7 @@ const AuthPage: React.FC = () => {
         setError(null);
         setResendSuccess(null);
         try {
-            // Send password too so backend can call signUp() again — the only reliable way to resend OTP
+            // Resend via backend (needs email + password to call signUp again)
             await api.post<any>('/api/auth/resend-otp', { email, password });
             setResendSuccess('New code sent! Please check your inbox.');
             setResendCooldown(60);
