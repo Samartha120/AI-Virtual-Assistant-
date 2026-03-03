@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../../store/useStore';
 import { Mail, Lock, User as UserIcon, Loader2, ArrowRight, Eye, EyeOff } from 'lucide-react';
@@ -15,6 +15,23 @@ const AuthPage: React.FC = () => {
     const [otp, setOtp] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [showPassword, setShowPassword] = useState(false);
+    const [resendCooldown, setResendCooldown] = useState(0);
+    const [resendSuccess, setResendSuccess] = useState<string | null>(null);
+    const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    // Start 60s cooldown when OTP screen appears
+    useEffect(() => {
+        if (isVerifyingOtp) setResendCooldown(60);
+    }, [isVerifyingOtp]);
+
+    useEffect(() => {
+        if (resendCooldown <= 0) {
+            if (cooldownRef.current) clearInterval(cooldownRef.current);
+            return;
+        }
+        cooldownRef.current = setInterval(() => setResendCooldown(prev => prev - 1), 1000);
+        return () => { if (cooldownRef.current) clearInterval(cooldownRef.current); };
+    }, [resendCooldown]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -92,9 +109,26 @@ const AuthPage: React.FC = () => {
             } else if (err.message) {
                 message = err.message;
             }
+            // Guide user to resend when token is expired
+            if (message.toLowerCase().includes('expired') || message.toLowerCase().includes('invalid')) {
+                message = 'Code expired or invalid. Click "Resend Code" below to get a fresh one.';
+            }
             setError(message);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleResendOtp = async () => {
+        if (resendCooldown > 0) return;
+        setError(null);
+        setResendSuccess(null);
+        try {
+            await api.post<any>('/api/auth/resend-otp', { email });
+            setResendSuccess('New code sent! Please check your inbox.');
+            setResendCooldown(60);
+        } catch {
+            setError('Failed to resend code. Please wait and try again.');
         }
     };
 
@@ -280,12 +314,30 @@ const AuthPage: React.FC = () => {
                             </span>
                         </button>
 
-                        <div className="mt-6 text-center">
+                        <div className="mt-6 text-center space-y-3">
+                            {/* Resend success confirmation */}
+                            {resendSuccess && (
+                                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-emerald-400">
+                                    ✓ {resendSuccess}
+                                </motion.p>
+                            )}
+                            {/* Resend Code with countdown */}
+                            <div>
+                                <button
+                                    type="button"
+                                    onClick={handleResendOtp}
+                                    disabled={resendCooldown > 0}
+                                    className="text-sm font-medium text-primary hover:text-primary/80 transition-colors disabled:text-gray-500 disabled:cursor-not-allowed"
+                                >
+                                    {resendCooldown > 0 ? `Resend Code in ${resendCooldown}s` : 'Resend Code'}
+                                </button>
+                            </div>
                             <button
                                 type="button"
                                 onClick={() => {
                                     setIsVerifyingOtp(false);
                                     setError(null);
+                                    setResendSuccess(null);
                                 }}
                                 className="text-sm text-gray-400 hover:text-white transition-colors"
                             >

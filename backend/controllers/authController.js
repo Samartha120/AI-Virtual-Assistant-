@@ -79,7 +79,11 @@ const verifyOtp = async (req, res) => {
         if (!email || !token) {
             return errorResponse(res, 400, 'Email and OTP token are required');
         }
+        if (!/^\d{6}$/.test(token)) {
+            return errorResponse(res, 400, 'OTP must be a 6-digit number');
+        }
 
+        // Supabase 6-digit email OTP uses type: 'email'
         const { data, error } = await supabase.auth.verifyOtp({
             email,
             token,
@@ -87,19 +91,12 @@ const verifyOtp = async (req, res) => {
         });
 
         if (error) {
-            // Because sometimes Supabase uses type 'email' instead of 'signup' for 6 digit codes
-            const retry = await supabase.auth.verifyOtp({ email, token, type: 'signup' });
-            if (retry.error) {
-                // If both 'email' and 'signup' types fail, return the error from the first attempt
-                // or the retry attempt if it provides a more specific message.
-                return errorResponse(res, 401, retry.error.message || error.message);
-            }
-            // If retry was successful, proceed with its data
-            successResponse(res, 'OTP verification successful', {
-                session: retry.data.session,
-                user: retry.data.user
-            });
-            return;
+            const isExpired = error.message.toLowerCase().includes('expired') || error.message.toLowerCase().includes('invalid');
+            const statusCode = isExpired ? 410 : 401; // 410 Gone = expired
+            return errorResponse(res, statusCode, isExpired
+                ? 'Verification code has expired or is invalid. Please request a new one.'
+                : error.message
+            );
         }
 
         successResponse(res, 'OTP verification successful', {
@@ -111,9 +108,36 @@ const verifyOtp = async (req, res) => {
     }
 };
 
+const resendOtp = async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            return errorResponse(res, 400, 'Email is required');
+        }
+
+        const { error } = await supabase.auth.resend({
+            type: 'signup',
+            email,
+        });
+
+        if (error) {
+            if (error.status === 429 || error.message.toLowerCase().includes('rate limit')) {
+                return errorResponse(res, 429, 'Too many resend requests. Please wait before trying again.');
+            }
+            return errorResponse(res, 400, error.message);
+        }
+
+        successResponse(res, 'Verification code resent successfully. Please check your email.');
+    } catch (err) {
+        errorResponse(res, 500, 'Failed to resend verification code', err.message);
+    }
+};
+
 module.exports = {
     signup,
     login,
     googleAuth,
-    verifyOtp
+    verifyOtp,
+    resendOtp
 };
