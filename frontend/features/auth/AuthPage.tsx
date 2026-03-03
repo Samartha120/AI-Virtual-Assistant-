@@ -24,12 +24,12 @@ const AuthPage: React.FC = () => {
         try {
             if (isLogin) {
                 const response = await api.post<any>('/api/auth/login', { email, password });
-                if (response.data && response.data.data) {
-                    login(response.data.data.user, response.data.data.session.access_token);
+                if (response.success && response.data) {
+                    login(response.data.user, response.data.session.access_token);
                 }
             } else {
                 const response = await api.post<any>('/api/auth/signup', { email, password, full_name: fullName });
-                if (response.data && response.data.data) {
+                if (response.success && response.data) {
                     // Always enforce OTP check on signup
                     setError(null); // Clear any previous errors
                     setIsVerifyingOtp(true);
@@ -131,14 +131,14 @@ const AuthPage: React.FC = () => {
                                         className="space-y-2 overflow-hidden"
                                     >
                                         <label className="text-sm font-medium text-gray-300">Full Name</label>
-                                        <div className="relative">
-                                            <UserIcon className="absolute left-4 top-[50%] -translate-y-[50%] text-gray-500 pointer-events-none" size={18} />
+                                        <div className="flex items-center w-full h-[52px] bg-black/20 border border-white/10 rounded-xl px-4 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all">
+                                            <UserIcon className="text-gray-500 mr-3 shrink-0" size={18} />
                                             <input
                                                 type="text"
                                                 value={fullName}
                                                 onChange={(e) => setFullName(e.target.value)}
                                                 placeholder="John Doe"
-                                                className="w-full bg-black/20 border border-white/10 rounded-xl py-[14px] pl-11 pr-4 text-white placeholder:text-gray-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all leading-tight"
+                                                className="flex-1 h-full bg-transparent text-white placeholder:text-gray-500 focus:outline-none"
                                             />
                                         </div>
                                     </motion.div>
@@ -147,15 +147,15 @@ const AuthPage: React.FC = () => {
 
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-gray-300">Email Address</label>
-                                <div className="relative">
-                                    <Mail className="absolute left-4 top-[50%] -translate-y-[50%] text-gray-500 pointer-events-none" size={18} />
+                                <div className="flex items-center w-full h-[52px] bg-black/20 border border-white/10 rounded-xl px-4 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all">
+                                    <Mail className="text-gray-500 mr-3 shrink-0" size={18} />
                                     <input
                                         type="email"
                                         required
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
                                         placeholder="name@company.com"
-                                        className="w-full bg-black/20 border border-white/10 rounded-xl py-[14px] pl-11 pr-4 text-white placeholder:text-gray-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all leading-tight"
+                                        className="flex-1 h-full bg-transparent text-white placeholder:text-gray-500 focus:outline-none"
                                     />
                                 </div>
                             </div>
@@ -165,20 +165,20 @@ const AuthPage: React.FC = () => {
                                     <label className="text-sm font-medium text-gray-300">Password</label>
                                     {isLogin && <button type="button" className="text-xs text-primary hover:text-primary/80 transition-colors">Forgot password?</button>}
                                 </div>
-                                <div className="relative">
-                                    <Lock className="absolute left-4 top-[50%] -translate-y-[50%] text-gray-500 pointer-events-none" size={18} />
+                                <div className="flex items-center w-full h-[52px] bg-black/20 border border-white/10 rounded-xl px-4 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all">
+                                    <Lock className="text-gray-500 mr-3 shrink-0" size={18} />
                                     <input
                                         type={showPassword ? "text" : "password"}
                                         required
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         placeholder="••••••••"
-                                        className="w-full bg-black/20 border border-white/10 rounded-xl py-[14px] pl-11 pr-12 text-white placeholder:text-gray-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all leading-tight"
+                                        className="flex-1 h-full bg-transparent text-white placeholder:text-gray-500 focus:outline-none"
                                     />
                                     <button
                                         type="button"
                                         onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-3 top-[50%] -translate-y-1/2 text-gray-500 hover:text-white transition-colors flex items-center justify-center p-1"
+                                        className="ml-2 h-full px-2 text-gray-500 hover:text-white transition-colors flex items-center justify-center shrink-0"
                                     >
                                         {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                     </button>
