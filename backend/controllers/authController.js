@@ -80,11 +80,20 @@ const verifyOtp = async (req, res) => {
         const { data, error } = await supabase.auth.verifyOtp({
             email,
             token,
-            type: 'signup'
+            type: 'email'
         });
 
         if (error) {
-            return errorResponse(res, 401, error.message);
+            // Because sometimes Supabase uses type 'email' instead of 'signup' for 6 digit codes
+            const retry = await supabase.auth.verifyOtp({ email, token, type: 'signup' });
+            if (retry.error) {
+                return errorResponse(res, 401, error.message);
+            }
+            successResponse(res, 'OTP verification successful', {
+                session: retry.data.session,
+                user: retry.data.user
+            });
+            return;
         }
 
         successResponse(res, 'OTP verification successful', {

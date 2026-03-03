@@ -72,8 +72,8 @@ const AuthPage: React.FC = () => {
 
         try {
             const response = await api.post<any>('/api/auth/verify-otp', { email, token: otp });
-            if (response.data && response.data.data) {
-                login(response.data.data.user, response.data.data.session.access_token);
+            if (response.success && response.data) {
+                login(response.data.user, response.data.session.access_token);
             }
         } catch (err: any) {
             let message = "Invalid Verification Code.";
