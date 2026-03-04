@@ -172,7 +172,7 @@ const AuthPage: React.FC = () => {
                         {isVerifyingOtp ? 'Verify Your Email' : isLogin ? 'Welcome back to NexusAI' : 'Join Nexus Enterprise OS'}
                     </h1>
                     <p className="text-sm text-gray-400 mt-2">
-                        {isVerifyingOtp ? `We've sent a verification code to ${email}` : isLogin ? 'Enter your credentials to access your workspace.' : 'Create an account to unlock intelligent productivity.'}
+                        {isVerifyingOtp ? `We've sent an 8-digit code to ${email}` : isLogin ? 'Enter your credentials to access your workspace.' : 'Create an account to unlock intelligent productivity.'}
                     </p>
                 </div>
 
@@ -286,7 +286,7 @@ const AuthPage: React.FC = () => {
                 ) : (
                     <form onSubmit={handleVerifyOtp} className="space-y-4">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-300 mt-4 block text-center">Verification Code</label>
+                            <label className="text-sm font-medium text-gray-300 mt-4 block text-center">8-Digit Confirmation Code</label>
                             <div className="flex justify-center">
                                 <input
                                     type="text"
@@ -294,7 +294,7 @@ const AuthPage: React.FC = () => {
                                     required
                                     value={otp}
                                     onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ''))}
-                                    placeholder="000000"
+                                    placeholder="00000000"
                                     className="w-56 bg-black/20 border border-white/10 rounded-xl py-3 px-4 text-center text-2xl tracking-[0.5em] font-mono text-white placeholder:text-gray-600 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all"
                                 />
                             </div>
@@ -321,7 +321,7 @@ const AuthPage: React.FC = () => {
 
                         <button
                             type="submit"
-                            disabled={isLoading || otp.length < 6}
+                            disabled={isLoading || otp.length < 8}
                             className="w-full relative group flex items-center justify-center py-3 bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white rounded-xl font-medium transition-all shadow-lg shadow-emerald-500/25 overflow-hidden mt-6 disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             <span className="relative z-10 flex items-center">

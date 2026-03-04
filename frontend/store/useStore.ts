@@ -37,12 +37,17 @@ export const useStore = create<AppState>((set, get) => ({
         set({ theme });
         document.documentElement.classList.remove('light', 'dark');
         document.documentElement.classList.add(theme);
-        // Ensure color scheme corresponds
         document.documentElement.style.colorScheme = theme;
+        localStorage.setItem('nexus-theme', theme);
     },
     login: (user, token) => {
         localStorage.setItem('sb-access-token', token);
-        set({ isAuthenticated: true, user });
+        // Apply persisted theme immediately so dashboard loads in the correct mode
+        const savedTheme = (localStorage.getItem('nexus-theme') as 'dark' | 'light') || 'dark';
+        document.documentElement.classList.remove('light', 'dark');
+        document.documentElement.classList.add(savedTheme);
+        document.documentElement.style.colorScheme = savedTheme;
+        set({ isAuthenticated: true, user, theme: savedTheme });
     },
     logout: () => {
         localStorage.removeItem('sb-access-token');

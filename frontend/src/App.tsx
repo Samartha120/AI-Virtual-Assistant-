@@ -12,6 +12,9 @@ import KnowledgeBase from './features/knowledge/KnowledgeBase';
 import ChatInterface from './features/chat/ChatInterface';
 
 import SettingsPage from './features/settings/SettingsPage';
+import WritingStudio from './features/writing/WritingStudio';
+import FocusTimer from './features/focus/FocusTimer';
+import GoalTracker from './features/goals/GoalTracker';
 
 const App: React.FC = () => {
   const { currentView, setCurrentView } = useStore();
@@ -36,6 +39,12 @@ const App: React.FC = () => {
         return <TaskBoard />;
       case AppView.KNOWLEDGE_BASE:
         return <KnowledgeBase />;
+      case AppView.WRITING_STUDIO:
+        return <WritingStudio />;
+      case AppView.FOCUS_TIMER:
+        return <FocusTimer />;
+      case AppView.GOALS:
+        return <GoalTracker />;
       case AppView.SETTINGS:
         return <SettingsPage />;
       default:

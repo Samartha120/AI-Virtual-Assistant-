@@ -70,8 +70,8 @@ const SettingsPage: React.FC = () => {
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-                        <p className="text-gray-400 mt-1">Manage your NexusAI preferences and configurations.</p>
+                        <h1 className="text-3xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>Settings</h1>
+                        <p className="mt-1" style={{ color: 'var(--text-muted)' }}>Manage your NexusAI preferences and configurations.</p>
                     </div>
 
                     <button
@@ -100,10 +100,12 @@ const SettingsPage: React.FC = () => {
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id as any)}
-                                    className={`w-full flex items-center p-3 rounded-xl transition-all ${isActive
-                                        ? 'bg-white/10 text-white border border-white/10 shadow-lg'
-                                        : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                                        }`}
+                                    className="w-full flex items-center p-3 rounded-xl transition-all"
+                                    style={{
+                                        background: isActive ? 'var(--card-hover)' : 'transparent',
+                                        border: isActive ? '1px solid var(--border)' : '1px solid transparent',
+                                        color: isActive ? 'var(--text)' : 'var(--text-muted)',
+                                    }}
                                 >
                                     <tab.icon size={18} className={`mr-3 ${isActive ? 'text-primary' : ''}`} />
                                     <span className="font-medium text-sm">{tab.label}</span>
@@ -119,7 +121,11 @@ const SettingsPage: React.FC = () => {
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.2 }}
-                            className="bg-surface/30 backdrop-blur-xl border border-white/5 rounded-2xl p-6 md:p-8 shadow-2xl"
+                            className="rounded-2xl p-6 md:p-8 shadow-2xl"
+                            style={{
+                                backgroundColor: 'var(--surface)',
+                                border: '1px solid var(--border)',
+                            }}
                         >
 
                             {/* PROFILE TAB */}
@@ -163,28 +169,98 @@ const SettingsPage: React.FC = () => {
 
                             {/* APPEARANCE TAB */}
                             {activeTab === 'appearance' && (
-                                <div className="space-y-6">
-                                    <h2 className="text-xl font-semibold mb-4 border-b border-white/5 pb-4">Appearance</h2>
+                                <div className="space-y-8">
+                                    <h2 className="text-xl font-semibold mb-1" style={{ color: 'var(--text)' }}>Appearance</h2>
+                                    <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>Choose how Nexus looks on your device. Changes apply instantly.</p>
 
-                                    <div className="space-y-4">
-                                        <h3 className="text-sm font-medium text-gray-400">Theme Preference</h3>
-                                        <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-3">
+                                        <h3 className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-subtle)' }}>Theme</h3>
+                                        <div className="grid grid-cols-2 gap-5">
+
+                                            {/* ── DARK MODE CARD ── */}
                                             <button
                                                 onClick={() => setTheme('dark')}
-                                                className={`p-4 rounded-xl border flex flex-col items-center justify-center space-y-3 transition-all ${theme === 'dark' ? 'bg-primary/10 border-primary text-white' : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/5'
-                                                    }`}
+                                                className="relative group rounded-2xl overflow-hidden focus:outline-none"
+                                                style={{
+                                                    border: theme === 'dark' ? '2px solid #8b5cf6' : '2px solid var(--border)',
+                                                    boxShadow: theme === 'dark' ? '0 0 0 4px rgba(139,92,246,0.18), 0 8px 32px rgba(0,0,0,0.45)' : 'none',
+                                                    transition: 'all 0.25s ease',
+                                                }}
                                             >
-                                                <Moon size={24} className={theme === 'dark' ? 'text-primary' : ''} />
-                                                <span className="font-medium text-sm">Dark Mode</span>
+                                                {/* Selected badge */}
+                                                {theme === 'dark' && (
+                                                    <span className="absolute top-2.5 right-2.5 z-10 w-5 h-5 rounded-full bg-primary flex items-center justify-center shadow-lg">
+                                                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                                                    </span>
+                                                )}
+                                                {/* Mini dark-UI preview */}
+                                                <div className="flex h-28 bg-[#0f1115] rounded-t-2xl overflow-hidden">
+                                                    {/* Sidebar strip */}
+                                                    <div className="w-10 bg-[#111114] flex flex-col items-center pt-3 gap-2 border-r border-white/5">
+                                                        <div className="w-5 h-5 rounded bg-primary/60" />
+                                                        {[...Array(4)].map((_, i) => (
+                                                            <div key={i} className="w-5 h-1.5 rounded-full bg-white/10" />
+                                                        ))}
+                                                    </div>
+                                                    {/* Content */}
+                                                    <div className="flex-1 p-3 space-y-2">
+                                                        <div className="w-2/3 h-2 rounded-full bg-white/20" />
+                                                        <div className="w-full h-10 rounded-xl bg-white/5 border border-white/8" />
+                                                        <div className="flex gap-2">
+                                                            <div className="flex-1 h-8 rounded-lg bg-white/5 border border-white/8" />
+                                                            <div className="flex-1 h-8 rounded-lg bg-primary/20 border border-primary/30" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {/* Label */}
+                                                <div className="bg-[#18181b] px-4 py-2.5 flex items-center gap-2 border-t border-white/5">
+                                                    <Moon size={14} className="text-primary" />
+                                                    <span className="text-sm font-semibold text-white">Dark Mode</span>
+                                                </div>
                                             </button>
+
+                                            {/* ── LIGHT MODE CARD ── */}
                                             <button
                                                 onClick={() => setTheme('light')}
-                                                className={`p-4 rounded-xl border flex flex-col items-center justify-center space-y-3 transition-all ${theme === 'light' ? 'bg-primary/10 border-primary text-white' : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/5'
-                                                    }`}
+                                                className="relative group rounded-2xl overflow-hidden focus:outline-none"
+                                                style={{
+                                                    border: theme === 'light' ? '2px solid #8b5cf6' : '2px solid var(--border)',
+                                                    boxShadow: theme === 'light' ? '0 0 0 4px rgba(139,92,246,0.18), 0 8px 32px rgba(0,0,0,0.2)' : 'none',
+                                                    transition: 'all 0.25s ease',
+                                                }}
                                             >
-                                                <Sun size={24} className={theme === 'light' ? 'text-primary' : ''} />
-                                                <span className="font-medium text-sm">Light Mode</span>
+                                                {/* Selected badge */}
+                                                {theme === 'light' && (
+                                                    <span className="absolute top-2.5 right-2.5 z-10 w-5 h-5 rounded-full bg-primary flex items-center justify-center shadow-lg">
+                                                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                                                    </span>
+                                                )}
+                                                {/* Mini light-UI preview */}
+                                                <div className="flex h-28 bg-[#f4f5f7] rounded-t-2xl overflow-hidden">
+                                                    {/* Sidebar strip */}
+                                                    <div className="w-10 bg-white flex flex-col items-center pt-3 gap-2 border-r border-black/8">
+                                                        <div className="w-5 h-5 rounded bg-primary/70" />
+                                                        {[...Array(4)].map((_, i) => (
+                                                            <div key={i} className="w-5 h-1.5 rounded-full bg-black/10" />
+                                                        ))}
+                                                    </div>
+                                                    {/* Content */}
+                                                    <div className="flex-1 p-3 space-y-2">
+                                                        <div className="w-2/3 h-2 rounded-full bg-black/20" />
+                                                        <div className="w-full h-10 rounded-xl bg-white border border-black/8 shadow-sm" />
+                                                        <div className="flex gap-2">
+                                                            <div className="flex-1 h-8 rounded-lg bg-white border border-black/8 shadow-sm" />
+                                                            <div className="flex-1 h-8 rounded-lg bg-primary/15 border border-primary/25" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {/* Label */}
+                                                <div className="bg-white px-4 py-2.5 flex items-center gap-2 border-t border-black/8">
+                                                    <Sun size={14} className="text-amber-500" />
+                                                    <span className="text-sm font-semibold text-gray-800">Light Mode</span>
+                                                </div>
                                             </button>
+
                                         </div>
                                     </div>
                                 </div>
