@@ -3,6 +3,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 
 // Load environment variables FIRST before importing supabase config
 dotenv.config();
@@ -93,8 +94,17 @@ app.get('/', (req, res) => {
     });
 });
 
-// ─── 404 Handler ──────────────────────────────────────────────────
-app.use((req, res) => {
+// ─── Serve React Frontend (Production) ────────────────────────────
+const distPath = path.join(__dirname, 'dist');
+app.use(express.static(distPath));
+
+// Catch-all: send index.html for any non-API route (React Router support)
+app.get('*', (req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+});
+
+// ─── 404 Handler (API routes only) ────────────────────────────────
+app.use('/api/*', (req, res) => {
     res.status(404).json({
         success: false,
         message: `Route ${req.method} ${req.originalUrl} not found`

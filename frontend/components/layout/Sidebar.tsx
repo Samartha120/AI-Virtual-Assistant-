@@ -11,7 +11,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Settings,
-  LogOut
+  LogOut,
+  PenLine,
+  Timer,
+  Target
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../../store/useStore';
@@ -34,6 +37,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
     { id: AppView.BRAINSTORMER, label: 'Brainstormer', icon: Lightbulb },
     { id: AppView.TASKS, label: 'Task Board', icon: CheckSquare },
     { id: AppView.KNOWLEDGE_BASE, label: 'Knowledge Base', icon: Database },
+    { id: AppView.WRITING_STUDIO, label: 'Writing Studio', icon: PenLine },
+    { id: AppView.FOCUS_TIMER, label: 'Focus Timer', icon: Timer },
+    { id: AppView.GOALS, label: 'Goal Tracker', icon: Target },
   ];
 
   return (

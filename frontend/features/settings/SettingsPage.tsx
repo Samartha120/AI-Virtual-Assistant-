@@ -194,7 +194,7 @@ const SettingsPage: React.FC = () => {
                                                     </span>
                                                 )}
                                                 {/* Mini dark-UI preview */}
-                                                <div className="flex h-28 bg-[#0f1115] rounded-t-2xl overflow-hidden">
+                                                <div className="flex h-28 bg-background rounded-t-2xl overflow-hidden">
                                                     {/* Sidebar strip */}
                                                     <div className="w-10 bg-[#111114] flex flex-col items-center pt-3 gap-2 border-r border-white/5">
                                                         <div className="w-5 h-5 rounded bg-primary/60" />
@@ -213,7 +213,7 @@ const SettingsPage: React.FC = () => {
                                                     </div>
                                                 </div>
                                                 {/* Label */}
-                                                <div className="bg-[#18181b] px-4 py-2.5 flex items-center gap-2 border-t border-white/5">
+                                                <div className="bg-surface px-4 py-2.5 flex items-center gap-2 border-t border-white/5">
                                                     <Moon size={14} className="text-primary" />
                                                     <span className="text-sm font-semibold text-white">Dark Mode</span>
                                                 </div>

@@ -7,6 +7,9 @@ export enum AppView {
   BRAINSTORMER = 'brainstorm',
   TASKS = 'tasks',
   KNOWLEDGE_BASE = 'knowledge',
+  WRITING_STUDIO = 'writing',
+  FOCUS_TIMER = 'focus',
+  GOALS = 'goals',
   SETTINGS = 'settings'
 }
 
