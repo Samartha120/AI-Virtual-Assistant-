@@ -88,20 +88,23 @@ const verifyOtp = async (req, res) => {
         if (!email || !token) {
             return errorResponse(res, 400, 'Email and OTP token are required');
         }
-        if (!/^\d{6}$/.test(token)) {
-            return errorResponse(res, 400, 'OTP must be a 6-digit number');
+        if (!/^\d{6,8}$/.test(token)) {
+            return errorResponse(res, 400, 'OTP must be a 6 to 8-digit number');
         }
 
-        // Supabase 6-digit email OTP uses type: 'email'
-        const { data, error } = await supabaseAuth.auth.verifyOtp({
-            email,
-            token,
-            type: 'email'
-        });
+        // Supabase sends type:'email' OTPs for signup confirmation flows
+        let result = await supabaseAuth.auth.verifyOtp({ email, token, type: 'email' });
+
+        // Fallback: try type:'signup' if 'email' fails
+        if (result.error) {
+            result = await supabaseAuth.auth.verifyOtp({ email, token, type: 'signup' });
+        }
+
+        const { data, error } = result;
 
         if (error) {
             const isExpired = error.message.toLowerCase().includes('expired') || error.message.toLowerCase().includes('invalid');
-            const statusCode = isExpired ? 410 : 401; // 410 Gone = expired
+            const statusCode = isExpired ? 410 : 401;
             return errorResponse(res, statusCode, isExpired
                 ? 'Verification code has expired or is invalid. Please request a new one.'
                 : error.message

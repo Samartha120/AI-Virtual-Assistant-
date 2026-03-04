@@ -105,14 +105,13 @@ const AuthPage: React.FC = () => {
         setIsLoading(true);
 
         try {
-            // Try 'signup' type first — this is correct for signup confirmation OTPs
-            // 'email' type is for email-change OTPs, which is a different flow
-            let result = await supabase.auth.verifyOtp({ email, token: otp, type: 'signup' });
+            // Supabase sends 'email' type OTPs for signup confirmation flows
+            let result = await supabase.auth.verifyOtp({ email, token: otp, type: 'email' });
 
-            // Fallback: try 'email' type if 'signup' fails
+            // Fallback: try 'signup' type if 'email' fails
             if (result.error) {
-                console.log('[OTP] type:signup failed, trying type:email. Error:', result.error.message);
-                result = await supabase.auth.verifyOtp({ email, token: otp, type: 'email' });
+                console.log('[OTP] type:email failed, trying type:signup. Error:', result.error.message);
+                result = await supabase.auth.verifyOtp({ email, token: otp, type: 'signup' });
             }
 
             const { data, error } = result;
@@ -173,7 +172,7 @@ const AuthPage: React.FC = () => {
                         {isVerifyingOtp ? 'Verify Your Email' : isLogin ? 'Welcome back to NexusAI' : 'Join Nexus Enterprise OS'}
                     </h1>
                     <p className="text-sm text-gray-400 mt-2">
-                        {isVerifyingOtp ? `We've sent a 6-digit code to ${email}` : isLogin ? 'Enter your credentials to access your workspace.' : 'Create an account to unlock intelligent productivity.'}
+                        {isVerifyingOtp ? `We've sent a verification code to ${email}` : isLogin ? 'Enter your credentials to access your workspace.' : 'Create an account to unlock intelligent productivity.'}
                     </p>
                 </div>
 
@@ -287,16 +286,16 @@ const AuthPage: React.FC = () => {
                 ) : (
                     <form onSubmit={handleVerifyOtp} className="space-y-4">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-300 mt-4 block text-center">6-Digit Confirmation Code</label>
+                            <label className="text-sm font-medium text-gray-300 mt-4 block text-center">Verification Code</label>
                             <div className="flex justify-center">
                                 <input
                                     type="text"
-                                    maxLength={6}
+                                    maxLength={8}
                                     required
                                     value={otp}
                                     onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ''))}
                                     placeholder="000000"
-                                    className="w-48 bg-black/20 border border-white/10 rounded-xl py-3 px-4 text-center text-2xl tracking-[0.5em] font-mono text-white placeholder:text-gray-600 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all"
+                                    className="w-56 bg-black/20 border border-white/10 rounded-xl py-3 px-4 text-center text-2xl tracking-[0.5em] font-mono text-white placeholder:text-gray-600 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all"
                                 />
                             </div>
                         </div>
