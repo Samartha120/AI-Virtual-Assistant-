@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../../store/useStore';
 import { Mail, Lock, User as UserIcon, Loader2, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { api } from '../../services/apiClient';
-import { supabase } from '../../lib/supabase';
 
 const AuthPage: React.FC = () => {
     const { login } = useStore();
@@ -66,34 +65,8 @@ const AuthPage: React.FC = () => {
                 }
             }
         } catch (err: any) {
-            let message = "An error occurred during authentication.";
-            if (err.message && err.message.includes('{')) {
-                try {
-                    const match = err.message.match(/:\s*({.*})/);
-                    if (match && match[1]) {
-                        const parsed = JSON.parse(match[1]);
-                        message = parsed.message || message;
-                    } else {
-                        message = err.message;
-                    }
-                } catch {
-                    message = err.message;
-                }
-            } else if (err.message) {
-                message = err.message;
-            }
-
-            if (message === "Invalid login credentials") {
-                message = "Invalid login credentials. Please ensure your password is correct and your email has been verified.";
-            }
-
-            if (message.toLowerCase().includes('rate limit')) {
-                message = "Security check triggered processing emails. Please wait a minute before retrying.";
-            }
-
-            // No fallback - we want real authentication only
+            const message = err.message || 'An error occurred. Please try again.';
             setError(message);
-
         } finally {
             setIsLoading(false);
         }
@@ -105,36 +78,30 @@ const AuthPage: React.FC = () => {
         setIsLoading(true);
 
         try {
-            // Supabase sends 'email' type OTPs for signup confirmation flows
-            let result = await supabase.auth.verifyOtp({ email, token: otp, type: 'email' });
+            const response = await api.post<any>('/api/auth/verify-otp', { email, token: otp });
 
-            // Fallback: try 'signup' type if 'email' fails
-            if (result.error) {
-                console.log('[OTP] type:email failed, trying type:signup. Error:', result.error.message);
-                result = await supabase.auth.verifyOtp({ email, token: otp, type: 'signup' });
-            }
-
-            const { data, error } = result;
-            console.log('[OTP] Final result — session:', !!data?.session, 'error:', error?.message);
-
-            if (error) {
-                setError('Code expired or invalid. Click "Resend Code" below to get a fresh one.');
-                return;
-            }
-
-            if (data?.session?.access_token) {
-                console.log('[OTP] Login successful, redirecting to dashboard');
-                login(data.user!, data.session.access_token);
-            } else {
-                setError('Verification succeeded but no session returned. Please try logging in.');
-                setIsVerifyingOtp(false);
+            if (response.success && response.data) {
+                if (response.data.session?.access_token) {
+                    // Auto-login after OTP verification
+                    login(response.data.user!, response.data.session.access_token);
+                } else if (response.data.requiresLogin) {
+                    // Server restarted and lost pending session — ask user to log in
+                    setError(null);
+                    setIsVerifyingOtp(false);
+                    setIsLogin(true);
+                    setOtp('');
+                }
             }
         } catch (err: any) {
-            setError('Verification failed. Please try again.');
+            const msg = err.message || 'Verification failed. Please try again.';
+            if (msg.toLowerCase().includes('expired') || msg.toLowerCase().includes('invalid')) {
+                setError('Code expired or invalid. Click "Resend Code" below to get a fresh one.');
+            } else {
+                setError(msg);
+            }
         } finally {
             setIsLoading(false);
         }
-
     };
 
     const handleResendOtp = async () => {
@@ -142,8 +109,7 @@ const AuthPage: React.FC = () => {
         setError(null);
         setResendSuccess(null);
         try {
-            // Resend via backend (needs email + password to call signUp again)
-            await api.post<any>('/api/auth/resend-otp', { email, password });
+            await api.post<any>('/api/auth/resend-otp', { email });
             setResendSuccess('New code sent! Please check your inbox.');
             setResendCooldown(60);
         } catch {
@@ -172,7 +138,7 @@ const AuthPage: React.FC = () => {
                         {isVerifyingOtp ? 'Verify Your Email' : isLogin ? 'Welcome back to NexusAI' : 'Join Nexus Enterprise OS'}
                     </h1>
                     <p className="text-sm text-gray-400 mt-2">
-                        {isVerifyingOtp ? `We've sent an 8-digit code to ${email}` : isLogin ? 'Enter your credentials to access your workspace.' : 'Create an account to unlock intelligent productivity.'}
+                        {isVerifyingOtp ? `We've sent a 6-digit code to ${email}` : isLogin ? 'Enter your credentials to access your workspace.' : 'Create an account to unlock intelligent productivity.'}
                     </p>
                 </div>
 
@@ -286,15 +252,15 @@ const AuthPage: React.FC = () => {
                 ) : (
                     <form onSubmit={handleVerifyOtp} className="space-y-4">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-300 mt-4 block text-center">8-Digit Confirmation Code</label>
+                            <label className="text-sm font-medium text-gray-300 mt-4 block text-center">6-Digit Verification Code</label>
                             <div className="flex justify-center">
                                 <input
                                     type="text"
-                                    maxLength={8}
+                                    maxLength={6}
                                     required
                                     value={otp}
                                     onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ''))}
-                                    placeholder="00000000"
+                                    placeholder="000000"
                                     className="w-56 bg-black/20 border border-white/10 rounded-xl py-3 px-4 text-center text-2xl tracking-[0.5em] font-mono text-white placeholder:text-gray-600 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all"
                                 />
                             </div>
@@ -321,7 +287,7 @@ const AuthPage: React.FC = () => {
 
                         <button
                             type="submit"
-                            disabled={isLoading || otp.length < 8}
+                            disabled={isLoading || otp.length < 6}
                             className="w-full relative group flex items-center justify-center py-3 bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white rounded-xl font-medium transition-all shadow-lg shadow-emerald-500/25 overflow-hidden mt-6 disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             <span className="relative z-10 flex items-center">
