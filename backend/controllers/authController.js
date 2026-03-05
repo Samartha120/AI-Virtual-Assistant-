@@ -18,44 +18,57 @@ const signup = async (req, res) => {
             return errorResponse(res, 400, 'Password must be at least 6 characters');
         }
 
-        // Step 1: Create user via Admin API (auto-confirmed, no Supabase email sent)
-        // If user already exists and is confirmed, this will error — we handle that below
-        const { data: adminData, error: adminError } = await supabase.auth.admin.createUser({
+        // Step 1: Create the user with standard signUp (no email sent if Supabase email
+        // confirmation is disabled, or we'll immediately override below)
+        const { data: signUpData, error: signUpError } = await supabaseAuth.auth.signUp({
             email,
             password,
-            email_confirm: true, // auto-confirm so Supabase doesn't try to send email
-            user_metadata: { full_name: full_name || '' },
+            options: { data: { full_name: full_name || '' } }
         });
 
-        if (adminError) {
-            // If user already exists (confirmed), tell them to log in instead
+        if (signUpError) {
+            console.error('[Signup] signUp error:', signUpError.message);
             if (
-                adminError.message.toLowerCase().includes('already exists') ||
-                adminError.message.toLowerCase().includes('already registered')
+                signUpError.message.toLowerCase().includes('already registered') ||
+                signUpError.message.toLowerCase().includes('already exists') ||
+                signUpError.status === 422
             ) {
                 return errorResponse(res, 409, 'An account with this email already exists. Please log in instead.');
             }
-            console.error('[Signup] Admin createUser error:', adminError.message);
-            return errorResponse(res, 400, adminError.message);
+            return errorResponse(res, 400, 'Signup failed: ' + signUpError.message);
         }
 
-        // Step 2: Generate OTP and send it ourselves via Resend API
+        const userId = signUpData?.user?.id;
+        if (!userId) {
+            return errorResponse(res, 500, 'Failed to create account. Please try again.');
+        }
+
+        // Step 2: Immediately auto-confirm the email via admin API
+        // This stops Supabase from sending any confirmation email
+        await supabase.auth.admin.updateUserById(userId, {
+            email_confirm: true
+        }).catch(err => console.warn('[Signup] Auto-confirm warning:', err.message));
+
+        // Step 3: Generate OTP and send via Resend ourselves
         const otp = setOtp(email);
-        pendingSignups.set(email.toLowerCase(), { password, fullName: full_name || '' });
+        pendingSignups.set(email.toLowerCase(), { password, fullName: full_name || '', userId });
 
         try {
             await sendOtpEmail(email, otp, full_name);
         } catch (emailErr) {
-            // If email fails, clean up the created user so they can retry
             console.error('[Signup] Failed to send OTP email:', emailErr.message);
-            await supabase.auth.admin.deleteUser(adminData.user.id).catch(() => { });
+            // Delete the created user so they can retry cleanly
+            await supabase.auth.admin.deleteUser(userId).catch(() => { });
             pendingSignups.delete(email.toLowerCase());
-            return errorResponse(res, 500, 'Account created but failed to send verification email. Please check your email address and try again.');
+            return errorResponse(res, 500,
+                'Account setup failed: could not send verification email. ' +
+                'Please check your RESEND_API_KEY environment variable.'
+            );
         }
 
         return successResponse(res, 'Account created. Please check your email for your 6-digit verification code.', {
             requiresEmailVerification: true,
-            user: { id: adminData.user.id, email: adminData.user.email },
+            user: { id: userId, email: signUpData.user.email },
             session: null,
         });
 
