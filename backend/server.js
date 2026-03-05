@@ -13,6 +13,10 @@ const supabase = require('./config/supabase');
 
 const app = express();
 
+// Trust the first proxy (required on Render, Heroku, Railway etc.)
+// Without this, express-rate-limit throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
+app.set('trust proxy', 1);
+
 // ─── Security Middleware ──────────────────────────────────────────
 app.use(helmet()); // Adds secure HTTP headers
 
