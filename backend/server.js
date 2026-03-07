@@ -22,7 +22,8 @@ app.use(helmet()); // Adds secure HTTP headers
 
 // CORS — allow frontend origins (dev + production)
 const allowedOrigins = [
-    process.env.FRONTEND_URL,  // e.g. https://your-app.vercel.app
+    process.env.FRONTEND_URL,           // Custom domain if set
+    'https://nexsus-ai.onrender.com',   // Render production URL
     'http://localhost:3000',
     'http://localhost:5173',
 ].filter(Boolean);

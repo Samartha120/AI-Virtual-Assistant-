@@ -25,8 +25,9 @@ export const askNexus = async (
   _useSearch: boolean = false
 ): Promise<string> => {
   // Uses the PUBLIC /api/chat endpoint (no auth required, Gemini key on backend)
-  const response = await api.post<{ success: boolean; reply: string }>('/api/chat', { message: prompt });
-  return response.reply || "";
+  const response = await api.post<{ success: boolean; reply?: string; data?: { reply: string } }>('/api/chat', { message: prompt });
+  // Support both flat { reply } and nested { data: { reply } } response shapes
+  return response.reply || response.data?.reply || "";
 };
 
 export const getChatHistory = async (): Promise<any[]> => {
