@@ -24,17 +24,26 @@ export const askNexus = async (
   _context?: string,
   _useSearch: boolean = false
 ): Promise<string> => {
-  const response = await api.post<{ data: { reply: string, messageId: string, role: string } }>('/api/ai/chat', { message: prompt });
-  return response.data?.reply || "";
+  // Uses the PUBLIC /api/chat endpoint (no auth required, Gemini key on backend)
+  const response = await api.post<{ success: boolean; reply: string }>('/api/chat', { message: prompt });
+  return response.reply || "";
 };
 
 export const getChatHistory = async (): Promise<any[]> => {
-  const response = await api.get<{ data: any[] }>('/api/ai/history');
-  return response.data || [];
+  try {
+    const response = await api.get<{ data: any[] }>('/api/ai/history');
+    return response.data || [];
+  } catch {
+    return []; // Gracefully fail if not logged in
+  }
 };
 
 export const clearChatHistory = async (): Promise<void> => {
-  await api.delete('/api/ai/history');
+  try {
+    await api.delete('/api/ai/history');
+  } catch {
+    // Gracefully fail if not logged in
+  }
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
