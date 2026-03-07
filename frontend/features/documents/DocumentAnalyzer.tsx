@@ -4,6 +4,9 @@ import { analyzeDocument } from '../../services/geminiService';
 import { AnalysisResult } from '../../types';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import mammoth from 'mammoth';
+import * as XLSX from 'xlsx';
+import JSZip from 'jszip';
 
 const DocumentAnalyzer: React.FC = () => {
   const [content, setContent] = useState('');
@@ -28,37 +31,74 @@ const DocumentAnalyzer: React.FC = () => {
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const extractTextFromPPTX = async (file: File): Promise<string> => {
+    try {
+      const zip = new JSZip();
+      const content = await zip.loadAsync(file);
+      let fullText = '';
+
+      // Look for slide XML files
+      const slideFiles = Object.keys(content.files).filter(name => name.startsWith('ppt/slides/slide') && name.endsWith('.xml'));
+
+      for (const slideName of slideFiles) {
+        const xmlContent = await content.file(slideName)?.async('string');
+        if (xmlContent) {
+          // Extremely basic regex to extract text from a:t tags
+          const textMatches = xmlContent.match(/<a:t>([^<]*)<\/a:t>/g);
+          if (textMatches) {
+            const slideText = textMatches.map(t => t.replace(/<\/?a:t>/g, '')).join(' ');
+            fullText += slideText + '\n\n';
+          }
+        }
+      }
+      return fullText.trim();
+    } catch (error) {
+      console.error('PPTX extraction error', error);
+      throw new Error('Failed to extract text from Presentation.');
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Check if file is a supported text-based format
-    const validExtensions = ['.txt', '.md', '.csv', '.json', '.js', '.ts', '.html', '.css'];
-    const isTextFile = validExtensions.some(ext => file.name.toLowerCase().endsWith(ext)) || file.type.startsWith('text/');
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    let extractedText = '';
 
-    if (!isTextFile) {
-      alert('Please upload a valid text document (.txt, .md, .csv, etc.)');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        setAttachedFile({
-          name: file.name,
-          content: event.target.result as string,
-          size: file.size
-        });
+    try {
+      if (['txt', 'md', 'csv', 'json', 'js', 'ts', 'html', 'css'].includes(extension || '')) {
+        // Plain text files
+        extractedText = await file.text();
+      } else if (extension === 'docx') {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        extractedText = result.value;
+      } else if (['xlsx', 'xls'].includes(extension || '')) {
+        const arrayBuffer = await file.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        extractedText = XLSX.utils.sheet_to_csv(worksheet);
+      } else if (extension === 'pptx') {
+        extractedText = await extractTextFromPPTX(file);
+      } else {
+        alert('Unsupported file format. Please upload TXT, MD, DOCX, XLSX, or PPTX.');
+        return;
       }
-    };
-    reader.onerror = () => {
-      alert('Failed to read file.');
-    };
-    reader.readAsText(file);
 
-    // Reset input so the same file can be selected again
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      setAttachedFile({
+        name: file.name,
+        content: extractedText,
+        size: file.size
+      });
+
+    } catch (err) {
+      console.error('File parsing error', err);
+      alert('Failed to parse the file. It might be corrupted or in an unsupported format.');
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -123,7 +163,7 @@ const DocumentAnalyzer: React.FC = () => {
                 ref={fileInputRef}
                 onChange={handleFileUpload}
                 className="hidden"
-                accept=".txt,.md,.csv,.json,.js,.ts,.html,.css,text/*"
+                accept=".txt,.md,.csv,.json,.js,.ts,.html,.css,text/*,.docx,.pptx,.xlsx,.xls"
               />
               <button
                 onClick={() => fileInputRef.current?.click()}
