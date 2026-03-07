@@ -103,12 +103,12 @@ const distPath = path.join(__dirname, 'dist');
 app.use(express.static(distPath));
 
 // Catch-all: send index.html for any non-API route (React Router support)
-app.get('*', (req, res) => {
+app.get('(.*)', (req, res) => {
     res.sendFile(path.join(distPath, 'index.html'));
 });
 
 // ─── 404 Handler (API routes only) ────────────────────────────────
-app.use('/api/*', (req, res) => {
+app.use('/api/(.*)', (req, res) => {
     res.status(404).json({
         success: false,
         message: `Route ${req.method} ${req.originalUrl} not found`
