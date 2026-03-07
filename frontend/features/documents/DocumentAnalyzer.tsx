@@ -9,13 +9,15 @@ const DocumentAnalyzer: React.FC = () => {
   const [content, setContent] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [attachedFile, setAttachedFile] = useState<{ name: string, content: string, size: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAnalyze = async () => {
-    if (!content.trim()) return;
+    const textToAnalyze = attachedFile ? attachedFile.content : content;
+    if (!textToAnalyze.trim()) return;
     setIsAnalyzing(true);
     try {
-      const response = await analyzeDocument(content);
+      const response = await analyzeDocument(textToAnalyze);
       const parsed = JSON.parse(response);
       setResult(parsed);
     } catch (error) {
@@ -42,7 +44,11 @@ const DocumentAnalyzer: React.FC = () => {
     const reader = new FileReader();
     reader.onload = (event) => {
       if (event.target?.result) {
-        setContent(event.target.result as string);
+        setAttachedFile({
+          name: file.name,
+          content: event.target.result as string,
+          size: file.size
+        });
       }
     };
     reader.onerror = () => {
@@ -54,6 +60,10 @@ const DocumentAnalyzer: React.FC = () => {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const removeAttachment = () => {
+    setAttachedFile(null);
   };
 
   const AnalysisSection = ({ title, items, color = "primary" }: { title: string, items: string[], color?: "primary" | "secondary" | "accent" }) => (
@@ -82,13 +92,30 @@ const DocumentAnalyzer: React.FC = () => {
           <p className="text-sm text-gray-400 mt-1">Extract structured insights from raw text or document files.</p>
         </header>
 
-        <Card className="flex-1 flex flex-col p-4 bg-background/50 overflow-hidden">
-          <textarea
-            className="flex-1 bg-transparent resize-none border-none outline-none text-sm text-gray-300 placeholder:text-gray-600 custom-scrollbar"
-            placeholder="Paste document text here or attach a text file..."
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-          />
+        <Card className="flex-1 flex flex-col p-4 bg-background/50 overflow-hidden relative">
+          {attachedFile ? (
+            <div className="flex-1 flex flex-col items-center justify-center relative">
+              <button
+                onClick={removeAttachment}
+                className="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-red-400 hover:bg-white/5 rounded-lg transition-colors"
+                title="Remove attachment"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+              </button>
+              <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center mb-3">
+                <FileText className="text-primary" size={32} />
+              </div>
+              <span className="text-white font-medium text-sm text-center max-w-[80%] truncate">{attachedFile.name}</span>
+              <span className="text-xs text-gray-400 mt-1">{(attachedFile.size / 1024).toFixed(1)} KB</span>
+            </div>
+          ) : (
+            <textarea
+              className="flex-1 bg-transparent resize-none border-none outline-none text-sm text-gray-300 placeholder:text-gray-600 custom-scrollbar"
+              placeholder="Paste document text here or attach a text file..."
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+            />
+          )}
           <div className="mt-4 pt-4 border-t border-white/5 flex justify-between items-center">
             <div className="flex items-center gap-3">
               <input
@@ -105,12 +132,14 @@ const DocumentAnalyzer: React.FC = () => {
               >
                 <Paperclip size={18} />
               </button>
-              <span className="text-xs text-gray-500">{content.length} chars</span>
+              <span className="text-xs text-gray-500">
+                {attachedFile ? `${attachedFile.content.length} chars` : `${content.length} chars`}
+              </span>
             </div>
             <Button
               onClick={handleAnalyze}
               isLoading={isAnalyzing}
-              disabled={!content.trim()}
+              disabled={(!content.trim() && !attachedFile)}
             >
               Analyze <Play className="ml-2 w-3 h-3" />
             </Button>
