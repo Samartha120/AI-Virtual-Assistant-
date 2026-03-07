@@ -51,7 +51,7 @@ const Brainstormer: React.FC = () => {
         </header>
 
         <div className="max-w-2xl mx-auto w-full space-y-6">
-          <Card className="p-2 flex items-center gap-2 bg-[#0f1115]/80 border-white/10 p-2 pl-4">
+          <Card className="flex items-center gap-2 bg-background/80 border-white/10 p-2 pl-4">
             <Zap className="text-amber-500" size={20} />
             <input
               type="text"
