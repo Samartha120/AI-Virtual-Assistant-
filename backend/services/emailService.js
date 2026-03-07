@@ -1,6 +1,16 @@
 const { Resend } = require('resend');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy client — only instantiated when actually needed.
+// Prevents server crash on startup if RESEND_API_KEY is not set.
+let _resend = null;
+function getResendClient() {
+  if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY.startsWith('re_placeholder')) {
+    console.warn('[EmailService] RESEND_API_KEY not set — email sending disabled.');
+    return null;
+  }
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY);
+  return _resend;
+}
 
 const FROM_ADDRESS = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 const SENDER_NAME = 'Nexus Enterprise OS';
@@ -12,9 +22,9 @@ const SENDER_NAME = 'Nexus Enterprise OS';
  * @param {string} fullName - user's display name (optional)
  */
 async function sendOtpEmail(toEmail, otp, fullName = '') {
-    const displayName = fullName || 'there';
+  const displayName = fullName || 'there';
 
-    const html = `
+  const html = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -67,20 +77,26 @@ async function sendOtpEmail(toEmail, otp, fullName = '') {
     </html>
     `;
 
-    const { data, error } = await resend.emails.send({
-        from: `${SENDER_NAME} <${FROM_ADDRESS}>`,
-        to: [toEmail],
-        subject: `${otp} is your Nexus verification code`,
-        html,
-    });
+  const client = getResendClient();
+  if (!client) {
+    console.warn(`[EmailService] Email disabled — would have sent OTP ${otp} to ${toEmail}`);
+    return { id: 'disabled' };
+  }
 
-    if (error) {
-        console.error('[EmailService] Resend error:', error);
-        throw new Error(error.message || 'Failed to send verification email');
-    }
+  const { data, error } = await client.emails.send({
+    from: `${SENDER_NAME} <${FROM_ADDRESS}>`,
+    to: [toEmail],
+    subject: `${otp} is your Nexus verification code`,
+    html,
+  });
 
-    console.log(`[EmailService] OTP email sent to ${toEmail}, id: ${data?.id}`);
-    return data;
+  if (error) {
+    console.error('[EmailService] Resend error:', error);
+    throw new Error(error.message || 'Failed to send verification email');
+  }
+
+  console.log(`[EmailService] OTP email sent to ${toEmail}, id: ${data?.id}`);
+  return data;
 }
 
 module.exports = { sendOtpEmail };
