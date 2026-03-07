@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { FileText, Upload, ChevronRight, File, Loader2, Play } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { FileText, Upload, ChevronRight, File, Loader2, Play, Paperclip } from 'lucide-react';
 import { analyzeDocument } from '../../services/geminiService';
 import { AnalysisResult } from '../../types';
 import { Card } from '../../components/ui/Card';
@@ -9,6 +9,7 @@ const DocumentAnalyzer: React.FC = () => {
   const [content, setContent] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAnalyze = async () => {
     if (!content.trim()) return;
@@ -22,6 +23,36 @@ const DocumentAnalyzer: React.FC = () => {
       alert('Analysis failed. Please try again.');
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check if file is a supported text-based format
+    const validExtensions = ['.txt', '.md', '.csv', '.json', '.js', '.ts', '.html', '.css'];
+    const isTextFile = validExtensions.some(ext => file.name.toLowerCase().endsWith(ext)) || file.type.startsWith('text/');
+
+    if (!isTextFile) {
+      alert('Please upload a valid text document (.txt, .md, .csv, etc.)');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setContent(event.target.result as string);
+      }
+    };
+    reader.onerror = () => {
+      alert('Failed to read file.');
+    };
+    reader.readAsText(file);
+
+    // Reset input so the same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -48,18 +79,34 @@ const DocumentAnalyzer: React.FC = () => {
       <div className="w-full md:w-1/3 flex flex-col gap-4">
         <header>
           <h2 className="text-2xl font-bold text-white tracking-tight">Doc Analyzer</h2>
-          <p className="text-sm text-gray-400 mt-1">Extract structured insights from raw text.</p>
+          <p className="text-sm text-gray-400 mt-1">Extract structured insights from raw text or document files.</p>
         </header>
 
-        <Card className="flex-1 flex flex-col p-4 bg-[#0f1115]/50 overflow-hidden">
+        <Card className="flex-1 flex flex-col p-4 bg-background/50 overflow-hidden">
           <textarea
             className="flex-1 bg-transparent resize-none border-none outline-none text-sm text-gray-300 placeholder:text-gray-600 custom-scrollbar"
-            placeholder="Paste document text here..."
+            placeholder="Paste document text here or attach a text file..."
             value={content}
             onChange={(e) => setContent(e.target.value)}
           />
           <div className="mt-4 pt-4 border-t border-white/5 flex justify-between items-center">
-            <span className="text-xs text-gray-500">{content.length} chars</span>
+            <div className="flex items-center gap-3">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                className="hidden"
+                accept=".txt,.md,.csv,.json,.js,.ts,.html,.css,text/*"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors flex items-center gap-2"
+                title="Attach text document"
+              >
+                <Paperclip size={18} />
+              </button>
+              <span className="text-xs text-gray-500">{content.length} chars</span>
+            </div>
             <Button
               onClick={handleAnalyze}
               isLoading={isAnalyzing}
@@ -76,7 +123,7 @@ const DocumentAnalyzer: React.FC = () => {
         {result ? (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Executive Summary */}
-            <Card className="p-6 bg-gradient-to-br from-primary/10 to-transparent border-primary/20">
+            <Card className="p-6 bg-linear-to-br from-primary/10 to-transparent border-primary/20">
               <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
                 <FileText className="text-primary" size={20} />
                 Executive Summary
@@ -95,7 +142,7 @@ const DocumentAnalyzer: React.FC = () => {
               <FileText size={48} className="text-white" />
             </div>
             <h3 className="text-xl font-bold text-white mb-2">Ready to Analyze</h3>
-            <p className="text-gray-400 max-w-xs">Paste your document text on the left to generate summary, insights, and action items.</p>
+            <p className="text-gray-400 max-w-xs">Paste your document text on the left or attach a file to generate summary, insights, and action items.</p>
           </div>
         )}
       </div>
