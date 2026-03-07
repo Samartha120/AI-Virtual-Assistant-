@@ -102,17 +102,22 @@ app.get('/', (req, res) => {
 const distPath = path.join(__dirname, 'dist');
 app.use(express.static(distPath));
 
-// Catch-all: send index.html for any non-API route (React Router support)
-app.get('(.*)', (req, res) => {
-    res.sendFile(path.join(distPath, 'index.html'));
+// ─── 404 Handler (API routes only) ────────────────────────────────
+// Must come BEFORE the SPA catch-all
+app.use((req, res, next) => {
+    if (req.path.startsWith('/api')) {
+        return res.status(404).json({
+            success: false,
+            message: `Route ${req.method} ${req.originalUrl} not found`
+        });
+    }
+    next();
 });
 
-// ─── 404 Handler (API routes only) ────────────────────────────────
-app.use('/api/(.*)', (req, res) => {
-    res.status(404).json({
-        success: false,
-        message: `Route ${req.method} ${req.originalUrl} not found`
-    });
+// Catch-all: send index.html for any non-API route (React Router / SPA support)
+// Uses plain app.use() to avoid path-to-regexp v8 wildcard incompatibility (Express 5)
+app.use((req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
 });
 
 // ─── Global Error Handler ─────────────────────────────────────────
