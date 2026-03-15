@@ -18,7 +18,7 @@ import GoalTracker from './features/goals/GoalTracker';
 import VerifyEmailPage from './pages/auth/verify-email';
 
 const App: React.FC = () => {
-  const { currentView, isAuthenticated, isVerified, initAuthListener } = useStore();
+  const { currentView, isAuthenticated, isVerified, requireVerification, initAuthListener } = useStore();
 
   React.useEffect(() => {
     const unsubscribe = initAuthListener();
@@ -62,7 +62,7 @@ const App: React.FC = () => {
     return <AuthPage />;
   }
 
-  if (!isVerified) {
+  if (requireVerification && !isVerified) {
     return <VerifyEmailPage />;
   }
 

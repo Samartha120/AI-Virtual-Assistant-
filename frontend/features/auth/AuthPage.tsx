@@ -87,7 +87,8 @@ const AuthPage: React.FC = () => {
             emailVerified: cred.user.emailVerified,
             phoneNumber: cred.user.phoneNumber,
           },
-          token
+          token,
+          false
         );
         return;
       }
@@ -100,7 +101,8 @@ const AuthPage: React.FC = () => {
       // Professional verification flow: send verification email on sign-up.
       try {
         await sendEmailVerification(cred.user);
-      } catch {
+      } catch (emailErr) {
+        console.error("Firebase sendEmailVerification failed:", emailErr);
         // If this fails, user can still resend from the verification screen.
       }
 
@@ -113,7 +115,8 @@ const AuthPage: React.FC = () => {
           emailVerified: cred.user.emailVerified,
           phoneNumber: cred.user.phoneNumber,
         },
-        token
+        token,
+        true
       );
     } catch (err: any) {
       const normalizedEmail = normalizeEmail(email);

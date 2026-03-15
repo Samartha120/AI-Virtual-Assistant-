@@ -12,12 +12,13 @@ interface AppState {
     notificationsEnabled: boolean;
     isAuthenticated: boolean;
     isVerified: boolean;
+    requireVerification: boolean;
     user: any | null;
     isLoadingSettings: boolean;
     setCurrentView: (view: AppView) => void;
     toggleSidebar: () => void;
     setTheme: (theme: 'dark' | 'light') => void;
-    login: (user: any, token: string) => void;
+    login: (user: any, token: string, isSignUp?: boolean) => void;
     logout: () => void;
     initAuthListener: () => () => void;
     setVerificationComplete: (verified: boolean) => void;
@@ -36,6 +37,7 @@ export const useStore = create<AppState>((set, get) => ({
     isLoadingSettings: false,
     isAuthenticated: false,
     isVerified: false,
+    requireVerification: false,
     user: null,
     initAuthListener: () => {
         const unsubscribe = onAuthStateChanged(firebaseAuth, async (user: User | null) => {
@@ -52,9 +54,12 @@ export const useStore = create<AppState>((set, get) => ({
                 // Token refresh failures should not crash the UI
             }
 
+            const requireVerification = sessionStorage.getItem('nexus:requireVerification') === 'true';
+
             set({
                 isAuthenticated: true,
                 isVerified: user.emailVerified || Boolean(user.phoneNumber),
+                requireVerification,
                 user: {
                     id: user.uid,
                     email: user.email,
@@ -76,20 +81,32 @@ export const useStore = create<AppState>((set, get) => ({
         document.documentElement.style.colorScheme = theme;
         localStorage.setItem('nexus-theme', theme);
     },
-    login: (user, token) => {
+    login: (user, token, isSignUp = false) => {
         if (token) localStorage.setItem('firebase-id-token', token);
+        if (isSignUp) {
+            sessionStorage.setItem('nexus:requireVerification', 'true');
+        } else {
+            sessionStorage.removeItem('nexus:requireVerification');
+        }
+        
+        const requireVerification = isSignUp || sessionStorage.getItem('nexus:requireVerification') === 'true';
+
         // Apply persisted theme immediately so dashboard loads in the correct mode
         const savedTheme = (localStorage.getItem('nexus-theme') as 'dark' | 'light') || 'dark';
         document.documentElement.classList.remove('light', 'dark');
         document.documentElement.classList.add(savedTheme);
         document.documentElement.style.colorScheme = savedTheme;
-        set({ isAuthenticated: true, isVerified: Boolean(user?.emailVerified) || Boolean(user?.phoneNumber), user, theme: savedTheme });
+        set({ isAuthenticated: true, isVerified: Boolean(user?.emailVerified) || Boolean(user?.phoneNumber), requireVerification, user, theme: savedTheme });
     },
-    setVerificationComplete: (verified) => set({ isVerified: verified }),
+    setVerificationComplete: (verified) => {
+        if (verified) sessionStorage.removeItem('nexus:requireVerification');
+        set({ isVerified: verified, requireVerification: !verified });
+    },
     logout: () => {
         localStorage.removeItem('firebase-id-token');
+        sessionStorage.removeItem('nexus:requireVerification');
         signOut(firebaseAuth).catch(() => undefined);
-        set({ isAuthenticated: false, isVerified: false, user: null });
+        set({ isAuthenticated: false, isVerified: false, requireVerification: false, user: null });
     },
     setAiModel: (aiModel) => set({ aiModel }),
     setNotificationsEnabled: (notificationsEnabled) => set({ notificationsEnabled }),
