@@ -1,7 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { KnowledgeItem } from '../../types';
-import { storage } from '../../services/storageService';
+import {
+  fetchKnowledgeItems,
+  createKnowledgeItem,
+  deleteKnowledgeItem,
+} from '../../services/firestoreService';
 
 const KnowledgeBase: React.FC = () => {
   const [items, setItems] = useState<KnowledgeItem[]>([]);
@@ -9,28 +13,42 @@ const KnowledgeBase: React.FC = () => {
   const [newItem, setNewItem] = useState({ title: '', content: '', type: 'research' as const });
 
   useEffect(() => {
-    setItems(storage.getKnowledge());
+    const load = async () => {
+      try {
+        const data = await fetchKnowledgeItems();
+        setItems(data);
+      } catch (err) {
+        console.error('Failed to load knowledge items:', err);
+      }
+    };
+    load();
   }, []);
 
-  const saveToStorage = (updatedItems: KnowledgeItem[]) => {
-    setItems(updatedItems);
-    storage.saveKnowledge(updatedItems);
-  };
-
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!newItem.title || !newItem.content) return;
-    const item: KnowledgeItem = {
-      id: Date.now().toString(),
-      ...newItem,
-      dateAdded: new Date().toLocaleDateString()
-    };
-    saveToStorage([item, ...items]);
-    setNewItem({ title: '', content: '', type: 'research' });
-    setIsAdding(false);
+    try {
+      const created = await createKnowledgeItem({
+        title: newItem.title,
+        content: newItem.content,
+        type: newItem.type,
+      });
+      setItems((prev) => [created, ...prev]);
+      setNewItem({ title: '', content: '', type: 'research' });
+      setIsAdding(false);
+    } catch (err) {
+      console.error('Failed to create knowledge item:', err);
+      alert('Failed to save. Please try again.');
+    }
   };
 
-  const deleteItem = (id: string) => {
-    saveToStorage(items.filter(i => i.id !== id));
+  const deleteItem = async (id: string) => {
+    try {
+      await deleteKnowledgeItem(id);
+      setItems((prev) => prev.filter((i) => i.id !== id));
+    } catch (err) {
+      console.error('Failed to delete knowledge item:', err);
+      alert('Failed to delete. Please try again.');
+    }
   };
 
   return (

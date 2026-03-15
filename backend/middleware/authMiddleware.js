@@ -1,4 +1,4 @@
-const { supabase } = require('../config/supabase');
+const { adminAuth } = require('../config/firebaseAdmin');
 
 const authenticateUser = async (req, res, next) => {
     try {
@@ -20,18 +20,21 @@ const authenticateUser = async (req, res, next) => {
             });
         }
 
-        const { data: { user }, error } = await supabase.auth.getUser(token);
+        const decoded = await adminAuth.verifyIdToken(token);
 
-        if (error || !user) {
-            console.error('Supabase Auth Error:', error?.message);
+        if (!decoded?.uid) {
             return res.status(401).json({
                 success: false,
                 message: 'Invalid or expired token.'
             });
         }
 
-        // Attach user to request object
-        req.user = user;
+        // Attach a stable shape for controllers expecting `req.user.id`
+        req.user = {
+            id: decoded.uid,
+            email: decoded.email,
+            ...decoded,
+        };
         next();
 
     } catch (err) {

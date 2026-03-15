@@ -1,4 +1,4 @@
-const { getUserSettings, updateUserSettings } = require('../services/supabase.service');
+const { getUserSettings, updateUserSettings } = require('../services/firebase.service');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 
 const getSettings = async (req, res) => {

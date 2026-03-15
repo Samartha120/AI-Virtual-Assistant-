@@ -1,7 +1,7 @@
 {
   "name": "nexusai-backend",
   "version": "2.0.0",
-  "description": "NexusAI Enterprise OS — Backend API (Node.js + Express + Supabase + Gemini)",
+  "description": "NexusAI Enterprise OS — Backend API (Node.js + Express + Firebase Admin + Gemini)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -12,19 +12,20 @@
   "keywords": [
     "nexusai",
     "express",
-    "supabase",
+    "firebase",
     "gemini"
   ],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
-    "@supabase/supabase-js": "^2.98.0",
     "axios": "^1.13.5",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "express-rate-limit": "^7.5.0",
+    "firebase-admin": "^13.5.0",
+    "graphql": "^16.13.1",
     "helmet": "^8.0.0",
     "multer": "^1.4.5-lts.1",
     "resend": "^6.9.3"

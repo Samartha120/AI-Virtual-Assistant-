@@ -1,4 +1,4 @@
-const { getUserTasks, createTask, updateTask, deleteTask } = require('../services/supabase.service');
+const { getUserTasks, createTask, updateTask, deleteTask } = require('../services/firebase.service');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 
 const getTasks = async (req, res) => {

@@ -1,6 +1,6 @@
 const multer = require('multer');
 
-// Configure multer storage (Memory storage for direct upload to Supabase)
+// Configure multer storage (Memory storage for direct upload to cloud storage)
 const storage = multer.memoryStorage();
 
 // File filter to restrict file types

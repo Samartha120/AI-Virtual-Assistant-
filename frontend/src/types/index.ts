@@ -17,8 +17,9 @@ export interface Task {
   id: string;
   title: string;
   status: 'todo' | 'in-progress' | 'done';
-  priority: 'low' | 'medium' | 'high';
+  priority: 'low' | 'medium' | 'high' | 'critical';
   deadline?: string;
+  order?: number;
 }
 
 export interface BrainstormIdea {

@@ -1,11 +1,11 @@
 # NexusAI Enterprise OS - Backend
 
-This backend is built with Node.js, Express, and Supabase. It powers the NexusAI Enterprise OS with features like AI Chat (Gemini), Document Analysis, and Task Management.
+This backend is built with Node.js and Express, using Firebase Admin SDK for authentication verification, Firestore for data, and Firebase Storage for uploads. It powers the NexusAI Enterprise OS with features like AI Chat (Gemini), Document Analysis, and Task Management.
 
 ## Prerequisites
 
 - Node.js (v18+)
-- Supabase Account
+- Firebase project (Firestore + Authentication + Storage enabled)
 - Google Cloud Account (for Gemini API)
 
 ## Setup
@@ -18,15 +18,19 @@ This backend is built with Node.js, Express, and Supabase. It powers the NexusAI
     ```
 3.  **Environment Variables**:
     - Copy `.env.example` to `.env`.
-    - Fill in your Supabase URL, Keys, and Gemini API Key.
+    - Fill in your Firebase Admin credentials and Gemini API Key.
     ```bash
     cp .env.example .env
     ```
 
-4.  **Supabase Setup**:
-    - Go to your Supabase Dashboard -> SQL Editor.
-    - Run the contents of `supabase_setup.sql` to create the necessary tables and policies.
-    - Create a storage bucket named `documents` and set it to public or properly authenticated.
+4.  **Firebase Setup**:
+    - Enable **Authentication** (Email/Password).
+    - Enable **Firestore**.
+    - Enable **Storage** (optional if you use uploads).
+    - Create a service account and set:
+      - `FIREBASE_PROJECT_ID`
+      - `FIREBASE_CLIENT_EMAIL`
+      - `FIREBASE_PRIVATE_KEY`
 
 ## Running the Server
 
@@ -42,9 +46,8 @@ This backend is built with Node.js, Express, and Supabase. It powers the NexusAI
 ## API Endpoints
 
 ### Auth
-- `POST /api/auth/signup` - Register a new user
-- `POST /api/auth/login` - Login user
-- `POST /api/auth/google` - Google Auth instructions
+- Auth is handled on the frontend via Firebase Client SDK.
+- Protected endpoints require `Authorization: Bearer <Firebase ID token>`.
 
 ### AI Chat
 - `POST /api/ai/chat` - Send message to Gemini
@@ -60,9 +63,9 @@ This backend is built with Node.js, Express, and Supabase. It powers the NexusAI
 
 ## Project Structure
 
-- `config/` - Configuration (Supabase)
+- `config/` - Configuration (Firebase Admin)
 - `controllers/` - Route logic
 - `middleware/` - Auth and Upload middleware
 - `routes/` - API route definitions
-- `services/` - External services (Gemini, Supabase)
+- `services/` - External services (Gemini, Firestore service)
 - `utils/` - Helpers (Response handler)

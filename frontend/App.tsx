@@ -17,7 +17,12 @@ import FocusTimer from './features/focus/FocusTimer';
 import GoalTracker from './features/goals/GoalTracker';
 
 const App: React.FC = () => {
-  const { currentView, setCurrentView, isAuthenticated } = useStore();
+  const { currentView, isAuthenticated, initAuthListener } = useStore();
+
+  React.useEffect(() => {
+    const unsubscribe = initAuthListener();
+    return () => unsubscribe();
+  }, [initAuthListener]);
 
   const renderView = () => {
     console.log("App renderView executing. currentView is:", currentView);

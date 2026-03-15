@@ -192,7 +192,7 @@ const TaskBoard: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#0f1115] overflow-hidden">
+    <div className="flex flex-col h-full bg-background overflow-hidden">
       {/* Header */}
       <div className="p-6 border-b border-white/5 flex items-center justify-between bg-surface/30 backdrop-blur-xl">
         <div>

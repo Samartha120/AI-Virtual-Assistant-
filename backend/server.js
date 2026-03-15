@@ -5,11 +5,8 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 
-// Load environment variables FIRST before importing supabase config
+// Load environment variables FIRST
 dotenv.config();
-
-// Supabase client (will process.exit(1) if env vars are missing)
-const supabase = require('./config/supabase');
 
 const app = express();
 

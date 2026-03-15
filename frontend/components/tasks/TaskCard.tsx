@@ -37,7 +37,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
             <div
                 ref={setNodeRef}
                 style={style}
-                className="h-[120px] w-full rounded-xl border-2 border-primary/50 bg-[#0f1115]/50 opacity-40"
+                className="h-30 w-full rounded-xl border-2 border-primary/50 bg-background/50 opacity-40"
             />
         );
     }
@@ -95,7 +95,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
             </div>
 
             {/* Hover Effect Glow */}
-            <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+            <div className="absolute inset-0 rounded-xl bg-linear-to-r from-primary/0 via-primary/5 to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
         </div>
     );
 };

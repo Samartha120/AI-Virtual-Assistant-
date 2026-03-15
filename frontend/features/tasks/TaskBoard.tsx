@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -15,7 +15,12 @@ import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { Plus, Sparkles, Loader2 } from 'lucide-react';
 import { Task } from '../../types';
 import { generateTaskAnalysis } from '../../services/geminiService';
-import { storage } from '../../services/storageService';
+import {
+  fetchTasks,
+  createTask as createTaskDoc,
+  updateTask as updateTaskDoc,
+  deleteTask as deleteTaskDoc,
+} from '../../services/firestoreService';
 import { KanbanColumn } from '../../components/tasks/KanbanColumn';
 import { TaskCard } from '../../components/tasks/TaskCard';
 import { Button } from '../../components/ui/Button';
@@ -30,6 +35,7 @@ const defaultTasks: Task[] = [
 const TaskBoard: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const activeInitialStatus = useRef<Task['status'] | null>(null);
   const [newTask, setNewTask] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
   const [aiAdvice, setAiAdvice] = useState<string | null>(null);
@@ -40,24 +46,35 @@ const TaskBoard: React.FC = () => {
   );
 
   useEffect(() => {
-    const loaded = storage.getTasks();
-    if (loaded && loaded.length > 0) {
-      // Migration check (old statuses) -> optional, but good for safety
-      const migrated = loaded.map((t: any) => ({
-        ...t,
-        status: t.status === 'pending' ? 'todo' : t.status === 'completed' ? 'done' : t.status
-      }));
-      setTasks(migrated);
-    } else {
-      setTasks(defaultTasks);
-    }
+    const load = async () => {
+      try {
+        const loaded = await fetchTasks();
+        if (loaded.length > 0) {
+          setTasks(loaded);
+          return;
+        }
+
+        // First-time user: seed with demo tasks (same UX as legacy localStorage)
+        const seeded = await Promise.all(
+          defaultTasks.map((t, idx) =>
+            createTaskDoc({
+              title: t.title,
+              status: t.status,
+              priority: t.priority,
+              deadline: t.deadline,
+              order: idx,
+            })
+          )
+        );
+        setTasks(seeded);
+      } catch (err) {
+        console.error('Failed to load tasks:', err);
+        setTasks(defaultTasks);
+      }
+    };
+
+    load();
   }, []);
-
-
-  const updateTasks = (newTasks: Task[]) => {
-    setTasks(newTasks);
-    storage.saveTasks(newTasks);
-  };
 
   // Import decomposeTask at top (assume handled by logic below)
 
@@ -84,18 +101,22 @@ const TaskBoard: React.FC = () => {
         const subtasks = await decomposeTask(taskTitle);
 
         if (subtasks.length > 0) {
-          const newTasks = subtasks.map(st => ({
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-            title: st.title,
-            status: 'todo' as const,
-            priority: st.priority
-          }));
+          // Replace the original task with newly created Firestore tasks
+          await deleteTaskDoc(taskId).catch(() => undefined);
 
-          setTasks(prev => {
-            const filtered = prev.filter(t => t.id !== taskId); // Remove original? Or Keep? Let's Remove original.
-            const updated = [...filtered, ...newTasks];
-            storage.saveTasks(updated);
-            return updated;
+          const created = await Promise.all(
+            subtasks.map((st) =>
+              createTaskDoc({
+                title: st.title,
+                status: 'todo',
+                priority: st.priority,
+              })
+            )
+          );
+
+          setTasks((prev) => {
+            const filtered = prev.filter((t) => t.id !== taskId);
+            return [...filtered, ...created];
           });
         }
       } catch (err) {
@@ -109,18 +130,27 @@ const TaskBoard: React.FC = () => {
 
   const addTask = () => {
     if (!newTask.trim()) return;
-    const task: Task = {
-      id: Date.now().toString(),
-      title: newTask,
-      status: 'todo',
-      priority: 'medium'
+    const create = async () => {
+      try {
+        const created = await createTaskDoc({
+          title: newTask.trim(),
+          status: 'todo',
+          priority: 'medium',
+        });
+        setTasks((prev) => [...prev, created]);
+        setNewTask('');
+      } catch (err) {
+        console.error('Failed to create task:', err);
+        alert('Failed to save task. Please try again.');
+      }
     };
-    updateTasks([...tasks, task]);
-    setNewTask('');
+
+    create();
   };
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
+    activeInitialStatus.current = (event.active.data.current as any)?.task?.status ?? null;
   };
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -141,8 +171,9 @@ const TaskBoard: React.FC = () => {
     if (!isOverTask) {
       const activeTask = tasks.find(t => t.id === activeId);
       if (activeTask && activeTask.status !== overId) {
-        updateTasks(tasks.map(t =>
-          t.id === activeId ? { ...t, status: overId as Task['status'] } : t
+        const nextStatus = overId as Task['status'];
+        setTasks(tasks.map(t =>
+          t.id === activeId ? { ...t, status: nextStatus } : t
         ));
       }
       return;
@@ -153,7 +184,7 @@ const TaskBoard: React.FC = () => {
     const overTask = tasks.find(t => t.id === overId);
 
     if (activeTask && overTask && activeTask.status !== overTask.status) {
-      updateTasks(tasks.map(t =>
+      setTasks(tasks.map(t =>
         t.id === activeId ? { ...t, status: overTask.status } : t
       ));
     }
@@ -165,16 +196,28 @@ const TaskBoard: React.FC = () => {
 
     if (!over) return;
 
-    const activeId = active.id;
-    const overId = over.id;
+    // Persist status change once, on drop
+    const activeTask = tasks.find((t) => t.id === String(active.id));
+    const overId = String(over.id);
+    const overTask = tasks.find((t) => t.id === overId);
+    const targetStatus = overTask ? overTask.status : (overId as Task['status']);
+    if (activeTask && targetStatus && activeInitialStatus.current && targetStatus !== activeInitialStatus.current) {
+      updateTaskDoc(String(active.id), { status: targetStatus }).catch(() => undefined);
+    }
+    activeInitialStatus.current = null;
 
-    if (activeId === overId) return;
+    const activeId = active.id;
+    const overIdAny = over.id;
+
+    if (activeId === overIdAny) return;
 
     const oldIndex = tasks.findIndex((t) => t.id === activeId);
-    const newIndex = tasks.findIndex((t) => t.id === overId);
+    const newIndex = tasks.findIndex((t) => t.id === overIdAny);
 
     if (oldIndex !== -1 && newIndex !== -1) {
-      updateTasks(arrayMove(tasks, oldIndex, newIndex));
+      const next = arrayMove(tasks, oldIndex, newIndex);
+      setTasks(next);
+      Promise.all(next.map((t, idx) => updateTaskDoc(t.id, { order: idx }))).catch(() => undefined);
     }
   };
 
@@ -192,7 +235,7 @@ const TaskBoard: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#0f1115] overflow-hidden">
+    <div className="flex flex-col h-full bg-background overflow-hidden">
       {/* Header */}
       <div className="p-6 border-b border-white/5 flex items-center justify-between bg-surface/30 backdrop-blur-xl">
         <div>

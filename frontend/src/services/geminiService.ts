@@ -16,7 +16,7 @@ import { api } from './apiClient';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ── Core request helper ───────────────────────────────────────────────────────
-// We now rely on apiClient.ts which safely injects the sb-access-token!
+// We now rely on apiClient.ts which safely injects the Firebase ID token!
 // askNexus — used by ChatInterface.tsx
 // ─────────────────────────────────────────────────────────────────────────────
 export const askNexus = async (

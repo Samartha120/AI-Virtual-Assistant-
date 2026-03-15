@@ -21,7 +21,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, tasks, co
             <div className="p-4 flex items-center justify-between border-b border-white/5">
                 <div className="flex items-center gap-2">
                     <h3 className="font-semibold text-gray-200">{title}</h3>
-                    <span className="flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full bg-white/10 text-[10px] font-medium text-gray-400">
+                    <span className="flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-white/10 text-[10px] font-medium text-gray-400">
                         {count}
                     </span>
                 </div>
@@ -30,7 +30,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({ id, title, tasks, co
             {/* Task List */}
             <div className="flex-1 p-3 overflow-y-auto custom-scrollbar">
                 <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-                    <div ref={setNodeRef} className="flex flex-col gap-3 min-h-[100px]">
+                    <div ref={setNodeRef} className="flex flex-col gap-3 min-h-25">
                         {tasks.map(task => (
                             <TaskCard key={task.id} task={task} />
                         ))}

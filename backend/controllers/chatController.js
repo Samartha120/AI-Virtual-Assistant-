@@ -1,5 +1,5 @@
 const { generateGeminiResponse } = require('../services/gemini.service');
-const { saveChatMessage, getChatHistory, clearChatHistory } = require('../services/supabase.service');
+const { saveChatMessage, getChatHistory, clearChatHistory } = require('../services/firebase.service');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 
 const chat = async (req, res) => {

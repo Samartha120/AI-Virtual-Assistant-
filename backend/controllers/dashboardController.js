@@ -1,41 +1,45 @@
-const { supabase } = require('../config/supabase');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
+const { adminDb } = require('../config/firebaseAdmin');
+const { COL, getCount } = require('../services/firebase.service');
 
 const getDashboardStats = async (req, res) => {
     try {
         const userId = req.user.id;
 
-        // Fetch counts in parallel for performance
-        const [chatResult, tasksResult, knowledgeResult] = await Promise.all([
-            supabase
-                .from('chat_messages')
-                .select('id', { count: 'exact', head: true })
-                .eq('user_id', userId),
-            supabase
-                .from('tasks')
-                .select('id', { count: 'exact', head: true })
-                .eq('user_id', userId),
-            supabase
-                .from('knowledge_base')
-                .select('id', { count: 'exact', head: true })
-                .eq('user_id', userId)
+        const chatQuery = adminDb.collection(COL.CHAT).where('user_id', '==', userId);
+        const tasksQuery = adminDb.collection(COL.TASKS).where('user_id', '==', userId);
+        const knowledgeQuery = adminDb.collection(COL.KNOWLEDGE).where('user_id', '==', userId);
+
+        const [totalMessages, totalTasks, totalKnowledgeItems] = await Promise.all([
+            getCount(chatQuery),
+            getCount(tasksQuery),
+            getCount(knowledgeQuery),
         ]);
 
-        // Fetch recent tasks for activity feed
-        const { data: recentTasks } = await supabase
-            .from('tasks')
-            .select('id, title, status, created_at')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false })
-            .limit(5);
+        const recentTasksSnap = await adminDb
+            .collection(COL.TASKS)
+            .where('user_id', '==', userId)
+            .orderBy('created_at', 'desc')
+            .limit(5)
+            .get();
+
+        const recentActivity = recentTasksSnap.docs.map((d) => {
+            const data = d.data();
+            return {
+                id: d.id,
+                title: data.title,
+                status: data.status,
+                created_at: data.created_at?.toDate ? data.created_at.toDate().toISOString() : data.created_at,
+            };
+        });
 
         successResponse(res, 'Dashboard stats retrieved', {
             stats: {
-                totalMessages: chatResult.count || 0,
-                totalTasks: tasksResult.count || 0,
-                totalKnowledgeItems: knowledgeResult.count || 0
+            totalMessages: totalMessages || 0,
+            totalTasks: totalTasks || 0,
+            totalKnowledgeItems: totalKnowledgeItems || 0
             },
-            recentActivity: recentTasks || []
+          recentActivity
         });
     } catch (err) {
         errorResponse(res, 500, 'Failed to retrieve dashboard stats', err.message);

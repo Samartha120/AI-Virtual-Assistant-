@@ -1,339 +1,208 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useStore } from '../../store/useStore';
 import { Mail, Lock, User as UserIcon, Loader2, ArrowRight, Eye, EyeOff } from 'lucide-react';
-import { api } from '../../services/apiClient';
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  updateProfile,
+} from 'firebase/auth';
+
+import { auth } from '../../lib/firebaseClient';
+import { useStore } from '../../store/useStore';
 
 const AuthPage: React.FC = () => {
-    const { login } = useStore();
-    const [isLogin, setIsLogin] = useState(true);
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [fullName, setFullName] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
-    const [otp, setOtp] = useState('');
-    const [error, setError] = useState<string | null>(null);
-    const [showPassword, setShowPassword] = useState(false);
-    const [resendCooldown, setResendCooldown] = useState(0);
-    const [resendSuccess, setResendSuccess] = useState<string | null>(null);
-    const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { login } = useStore();
 
-    // Start 60s cooldown when OTP screen appears
-    useEffect(() => {
-        if (isVerifyingOtp) setResendCooldown(60);
-    }, [isVerifyingOtp]);
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
-    useEffect(() => {
-        if (resendCooldown <= 0) {
-            if (cooldownRef.current) clearInterval(cooldownRef.current);
-            return;
-        }
-        cooldownRef.current = setInterval(() => setResendCooldown(prev => prev - 1), 1000);
-        return () => { if (cooldownRef.current) clearInterval(cooldownRef.current); };
-    }, [resendCooldown]);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError(null);
-        setIsLoading(true);
+    try {
+      if (isLogin) {
+        const cred = await signInWithEmailAndPassword(auth, email, password);
+        const token = await cred.user.getIdToken();
+        login(
+          {
+            id: cred.user.uid,
+            email: cred.user.email,
+            displayName: cred.user.displayName,
+          },
+          token
+        );
+        return;
+      }
 
-        try {
-            if (isLogin) {
-                const response = await api.post<any>('/api/auth/login', { email, password });
-                if (response.success && response.data) {
-                    login(response.data.user, response.data.session.access_token);
-                }
-            } else {
-                const response = await api.post<any>('/api/auth/signup', { email, password, full_name: fullName });
-                console.log('[SIGNUP] Raw response:', response);
-                if (response.success && response.data) {
-                    console.log('[SIGNUP] requiresEmailVerification:', response.data.requiresEmailVerification, '| session:', !!response.data.session);
-                    if (response.data.requiresEmailVerification) {
-                        // Email confirmation ON → show OTP screen
-                        setError(null);
-                        setIsVerifyingOtp(true);
-                    } else if (response.data.session) {
-                        // Email confirmation OFF → log in directly, no OTP needed
-                        console.log('[SIGNUP] Logging in directly, token:', response.data.session.access_token?.substring(0, 20));
-                        login(response.data.user, response.data.session.access_token);
-                    } else {
-                        console.log('[SIGNUP] No session and no requiresEmailVerification — unusual state');
-                    }
-                } else {
-                    console.log('[SIGNUP] response.success false or no data:', response);
-                }
-            }
-        } catch (err: any) {
-            const message = err.message || 'An error occurred. Please try again.';
-            setError(message);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      if (fullName.trim()) {
+        await updateProfile(cred.user, { displayName: fullName.trim() });
+      }
+      const token = await cred.user.getIdToken();
+      login(
+        {
+          id: cred.user.uid,
+          email: cred.user.email,
+          displayName: fullName.trim() || cred.user.displayName,
+        },
+        token
+      );
+    } catch (err: any) {
+      setError(err?.message || 'An error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    const handleVerifyOtp = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError(null);
-        setIsLoading(true);
+  return (
+    <div className="flex h-screen w-screen items-center justify-center overflow-hidden bg-background">
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute top-[20%] left-[-10%] w-[50%] h-[50%] bg-primary/10 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/10 rounded-full blur-[120px]" />
+      </div>
 
-        try {
-            const response = await api.post<any>('/api/auth/verify-otp', { email, token: otp });
-
-            if (response.success && response.data) {
-                if (response.data.session?.access_token) {
-                    // Auto-login after OTP verification
-                    login(response.data.user!, response.data.session.access_token);
-                } else if (response.data.requiresLogin) {
-                    // Server restarted and lost pending session — ask user to log in
-                    setError(null);
-                    setIsVerifyingOtp(false);
-                    setIsLogin(true);
-                    setOtp('');
-                }
-            }
-        } catch (err: any) {
-            const msg = err.message || 'Verification failed. Please try again.';
-            if (msg.toLowerCase().includes('expired') || msg.toLowerCase().includes('invalid')) {
-                setError('Code expired or invalid. Click "Resend Code" below to get a fresh one.');
-            } else {
-                setError(msg);
-            }
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleResendOtp = async () => {
-        if (resendCooldown > 0) return;
-        setError(null);
-        setResendSuccess(null);
-        try {
-            await api.post<any>('/api/auth/resend-otp', { email });
-            setResendSuccess('New code sent! Please check your inbox.');
-            setResendCooldown(60);
-        } catch {
-            setError('Failed to resend code. Please wait and try again.');
-        }
-    };
-
-    return (
-        <div className="flex h-screen w-screen items-center justify-center overflow-hidden bg-background">
-            <div className="fixed inset-0 pointer-events-none z-0">
-                <div className="absolute top-[20%] left-[-10%] w-[50%] h-[50%] bg-primary/10 rounded-full blur-[120px]" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/10 rounded-full blur-[120px]" />
-            </div>
-
-            <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.4, type: 'spring' }}
-                className="relative z-10 w-full max-w-md p-8 bg-surface/40 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-3xl"
-            >
-                <div className="text-center mb-8">
-                    <div className="w-16 h-16 mx-auto rounded-2xl bg-linear-to-tr from-primary to-blue-500 shadow-lg shadow-primary/30 flex items-center justify-center mb-6">
-                        <span className="text-3xl font-bold text-white">N</span>
-                    </div>
-                    <h1 className="text-2xl font-bold text-white tracking-tight">
-                        {isVerifyingOtp ? 'Verify Your Email' : isLogin ? 'Welcome back to NexusAI' : 'Join Nexus Enterprise OS'}
-                    </h1>
-                    <p className="text-sm text-gray-400 mt-2">
-                        {isVerifyingOtp ? `We've sent a 6-digit code to ${email}` : isLogin ? 'Enter your credentials to access your workspace.' : 'Create an account to unlock intelligent productivity.'}
-                    </p>
-                </div>
-
-                {!isVerifyingOtp ? (
-                    <>
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <AnimatePresence mode="wait">
-                                {!isLogin && (
-                                    <motion.div
-                                        initial={{ opacity: 0, height: 0 }}
-                                        animate={{ opacity: 1, height: 'auto' }}
-                                        exit={{ opacity: 0, height: 0 }}
-                                        className="space-y-2 overflow-hidden"
-                                    >
-                                        <label className="text-sm font-medium text-gray-300">Full Name</label>
-                                        <div className="flex items-center w-full h-[52px] bg-black/20 border border-white/10 rounded-xl px-4 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all">
-                                            <UserIcon className="text-gray-500 mr-3 shrink-0" size={18} />
-                                            <input
-                                                type="text"
-                                                value={fullName}
-                                                onChange={(e) => setFullName(e.target.value)}
-                                                placeholder="John Doe"
-                                                className="flex-1 h-full bg-transparent text-white placeholder:text-gray-500 focus:outline-none"
-                                            />
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-300">Email Address</label>
-                                <div className="flex items-center w-full h-[52px] bg-black/20 border border-white/10 rounded-xl px-4 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all">
-                                    <Mail className="text-gray-500 mr-3 shrink-0" size={18} />
-                                    <input
-                                        type="email"
-                                        required
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        placeholder="name@company.com"
-                                        className="flex-1 h-full bg-transparent text-white placeholder:text-gray-500 focus:outline-none"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <label className="text-sm font-medium text-gray-300">Password</label>
-                                    {isLogin && <button type="button" className="text-xs text-primary hover:text-primary/80 transition-colors">Forgot password?</button>}
-                                </div>
-                                <div className="flex items-center w-full h-[52px] bg-black/20 border border-white/10 rounded-xl px-4 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all">
-                                    <Lock className="text-gray-500 mr-3 shrink-0" size={18} />
-                                    <input
-                                        type={showPassword ? "text" : "password"}
-                                        required
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        placeholder="••••••••"
-                                        className="flex-1 h-full bg-transparent text-white placeholder:text-gray-500 focus:outline-none"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="ml-2 h-full px-2 text-gray-500 hover:text-white transition-colors flex items-center justify-center shrink-0"
-                                    >
-                                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                                    </button>
-                                </div>
-                            </div>
-
-                            {error && (
-                                <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 text-center"
-                                >
-                                    {error}
-                                </motion.div>
-                            )}
-
-                            <button
-                                type="submit"
-                                disabled={isLoading}
-                                className="w-full relative group flex items-center justify-center py-3 bg-linear-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-white rounded-xl font-medium transition-all shadow-lg shadow-primary/25 overflow-hidden mt-6 disabled:opacity-70 disabled:cursor-not-allowed"
-                            >
-                                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out" />
-                                <span className="relative z-10 flex items-center">
-                                    {isLoading ? (
-                                        <Loader2 className="animate-spin w-5 h-5" />
-                                    ) : (
-                                        <>
-                                            {isLogin ? 'Sign In' : 'Create Account'}
-                                            <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                                        </>
-                                    )}
-                                </span>
-                            </button>
-                        </form>
-
-                        <div className="mt-6 text-center">
-                            <button
-                                onClick={() => {
-                                    setIsLogin(!isLogin);
-                                    setError(null);
-                                }}
-                                className="text-sm text-gray-400 hover:text-white transition-colors"
-                            >
-                                {isLogin ? "Don't have an account? Sign up" : "Already have an account? Log in"}
-                            </button>
-                        </div>
-                    </>
-                ) : (
-                    <form onSubmit={handleVerifyOtp} className="space-y-4">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-300 mt-4 block text-center">6-Digit Verification Code</label>
-                            <div className="flex justify-center">
-                                <input
-                                    type="text"
-                                    maxLength={6}
-                                    required
-                                    value={otp}
-                                    onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ''))}
-                                    placeholder="000000"
-                                    className="w-56 bg-black/20 border border-white/10 rounded-xl py-3 px-4 text-center text-2xl tracking-[0.5em] font-mono text-white placeholder:text-gray-600 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all"
-                                />
-                            </div>
-                        </div>
-
-                        {error && !error.includes("successful") && (
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 text-center"
-                            >
-                                {error}
-                            </motion.div>
-                        )}
-                        {error && error.includes("successful") && (
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-sm text-emerald-400 text-center"
-                            >
-                                {error}
-                            </motion.div>
-                        )}
-
-                        <button
-                            type="submit"
-                            disabled={isLoading || otp.length < 6}
-                            className="w-full relative group flex items-center justify-center py-3 bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white rounded-xl font-medium transition-all shadow-lg shadow-emerald-500/25 overflow-hidden mt-6 disabled:opacity-70 disabled:cursor-not-allowed"
-                        >
-                            <span className="relative z-10 flex items-center">
-                                {isLoading ? (
-                                    <Loader2 className="animate-spin w-5 h-5" />
-                                ) : (
-                                    <>Verify Account</>
-                                )}
-                            </span>
-                        </button>
-
-                        <div className="mt-6 text-center space-y-3">
-                            {/* Resend success confirmation */}
-                            {resendSuccess && (
-                                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-emerald-400">
-                                    ✓ {resendSuccess}
-                                </motion.p>
-                            )}
-                            {/* Resend Code with countdown */}
-                            <div>
-                                <button
-                                    type="button"
-                                    onClick={handleResendOtp}
-                                    disabled={resendCooldown > 0}
-                                    className="text-sm font-medium text-primary hover:text-primary/80 transition-colors disabled:text-gray-500 disabled:cursor-not-allowed"
-                                >
-                                    {resendCooldown > 0 ? `Resend Code in ${resendCooldown}s` : 'Resend Code'}
-                                </button>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setIsVerifyingOtp(false);
-                                    setError(null);
-                                    setResendSuccess(null);
-                                }}
-                                className="text-sm text-gray-400 hover:text-white transition-colors"
-                            >
-                                Back to login
-                            </button>
-                        </div>
-                    </form>
-                )}
-            </motion.div>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.4, type: 'spring' }}
+        className="relative z-10 w-full max-w-md p-8 bg-surface/40 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-3xl"
+      >
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-linear-to-tr from-primary to-blue-500 shadow-lg shadow-primary/30 flex items-center justify-center mb-6">
+            <span className="text-3xl font-bold text-white">N</span>
+          </div>
+          <h1 className="text-2xl font-bold text-white tracking-tight">
+            {isLogin ? 'Welcome back to NexusAI' : 'Join Nexus Enterprise OS'}
+          </h1>
+          <p className="text-sm text-gray-400 mt-2">
+            {isLogin
+              ? 'Enter your credentials to access your workspace.'
+              : 'Create an account to unlock intelligent productivity.'}
+          </p>
         </div>
-    );
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <AnimatePresence mode="wait">
+            {!isLogin && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="space-y-2 overflow-hidden"
+              >
+                <label className="text-sm font-medium text-gray-300">Full Name</label>
+                <div className="flex items-center w-full h-13 bg-black/20 border border-white/10 rounded-xl px-4 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all">
+                  <UserIcon className="text-gray-500 mr-3 shrink-0" size={18} />
+                  <input
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="John Doe"
+                    className="flex-1 h-full bg-transparent text-white placeholder:text-gray-500 focus:outline-none"
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-300">Email Address</label>
+            <div className="flex items-center w-full h-13 bg-black/20 border border-white/10 rounded-xl px-4 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all">
+              <Mail className="text-gray-500 mr-3 shrink-0" size={18} />
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@company.com"
+                className="flex-1 h-full bg-transparent text-white placeholder:text-gray-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-300">Password</label>
+              {isLogin && (
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:text-primary/80 transition-colors"
+                >
+                  Forgot password?
+                </button>
+              )}
+            </div>
+            <div className="flex items-center w-full h-13 bg-black/20 border border-white/10 rounded-xl px-4 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all">
+              <Lock className="text-gray-500 mr-3 shrink-0" size={18} />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="flex-1 h-full bg-transparent text-white placeholder:text-gray-500 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="ml-2 h-full px-2 text-gray-500 hover:text-white transition-colors flex items-center justify-center shrink-0"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+
+          {error && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 text-center"
+            >
+              {error}
+            </motion.div>
+          )}
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full relative group flex items-center justify-center py-3 bg-linear-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-white rounded-xl font-medium transition-all shadow-lg shadow-primary/25 overflow-hidden mt-6 disabled:opacity-70 disabled:cursor-not-allowed"
+          >
+            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out" />
+            <span className="relative z-10 flex items-center">
+              {isLoading ? (
+                <Loader2 className="animate-spin w-5 h-5" />
+              ) : (
+                <>
+                  {isLogin ? 'Sign In' : 'Create Account'}
+                  <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </>
+              )}
+            </span>
+          </button>
+        </form>
+
+        <div className="mt-6 text-center">
+          <button
+            type="button"
+            onClick={() => {
+              setIsLogin((v) => !v);
+              setError(null);
+            }}
+            className="text-sm text-gray-400 hover:text-white transition-colors"
+          >
+            {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Log in'}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
 };
 
 export default AuthPage;

@@ -1,4 +1,4 @@
-const { getKnowledgeItems, createKnowledgeItem, deleteKnowledgeItem } = require('../services/supabase.service');
+const { getKnowledgeItems, createKnowledgeItem, deleteKnowledgeItem } = require('../services/firebase.service');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 
 const getItems = async (req, res) => {

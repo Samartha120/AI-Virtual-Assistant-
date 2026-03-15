@@ -3,7 +3,7 @@ services:
     name: nexusai-backend
     runtime: node
     rootDir: backend
-    buildCommand: npm install
+    buildCommand: cd .. && npm install && npm run build && cd backend && npm install
     startCommand: npm run start
     envVars:
       - key: NODE_ENV
@@ -14,11 +14,13 @@ services:
         value: "10000"
       - key: FRONTEND_URL
         sync: false
-      - key: SUPABASE_URL
+      - key: FIREBASE_PROJECT_ID
         sync: false
-      - key: SUPABASE_ANON_KEY
+      - key: FIREBASE_CLIENT_EMAIL
         sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
+      - key: FIREBASE_STORAGE_BUCKET
         sync: false
       - key: GEMINI_API_KEY
         sync: false

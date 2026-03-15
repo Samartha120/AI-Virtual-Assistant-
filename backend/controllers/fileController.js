@@ -1,4 +1,5 @@
-const { supabase } = require('../config/supabase');
+const crypto = require('crypto');
+const { adminBucket } = require('../config/firebaseAdmin');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 
 const uploadFile = async (req, res) => {
@@ -12,28 +13,30 @@ const uploadFile = async (req, res) => {
         const fileExt = file.originalname.split('.').pop();
         const fileName = `${userId}/${Date.now()}.${fileExt}`;
 
-        // Upload to Supabase Storage in 'documents' bucket
-        const { data, error } = await supabase.storage
-            .from('documents')
-            .upload(fileName, file.buffer, {
-                contentType: file.mimetype,
-                upsert: false
-            });
+        const downloadToken = crypto.randomUUID();
+        const gcsFile = adminBucket.file(fileName);
 
-        if (error) {
-            return errorResponse(res, 500, 'Storage upload failed', error.message);
-        }
+        await gcsFile.save(file.buffer, {
+            resumable: false,
+            contentType: file.mimetype,
+            metadata: {
+                metadata: {
+                    firebaseStorageDownloadTokens: downloadToken,
+                },
+            },
+        });
 
-        // Get public URL
-        const { data: publicData } = supabase.storage
-            .from('documents')
-            .getPublicUrl(fileName);
+        // Return a signed URL (works without making the object public)
+        const [signedUrl] = await gcsFile.getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 60 * 60 * 1000, // 1 hour
+        });
 
         successResponse(res, 'File uploaded successfully', {
-            path: data.path,
-            url: publicData.publicUrl,
+            path: fileName,
+            url: signedUrl,
             originalName: file.originalname,
-            mimeType: file.mimetype
+            mimeType: file.mimetype,
         });
 
     } catch (err) {

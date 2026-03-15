@@ -15,14 +15,26 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
+import { auth } from '../lib/firebaseClient';
+
 const BASE_URL: string =
     import.meta.env.VITE_API_URL ?? 'https://nexsus-ai.onrender.com';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function getAuthHeaders(): Record<string, string> {
-    const token = localStorage.getItem('sb-access-token');
-    return token ? { Authorization: `Bearer ${token}` } : {};
+async function getAuthHeaders(): Promise<Record<string, string>> {
+    try {
+        if (auth.currentUser) {
+            const token = await auth.currentUser.getIdToken();
+            localStorage.setItem('firebase-id-token', token);
+            return { Authorization: `Bearer ${token}` };
+        }
+    } catch {
+        // Ignore token fetch errors; request will go without auth
+    }
+
+    const cachedToken = localStorage.getItem('firebase-id-token');
+    return cachedToken ? { Authorization: `Bearer ${cachedToken}` } : {};
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
@@ -48,7 +60,7 @@ async function request<T>(
 
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        ...getAuthHeaders(),
+        ...(await getAuthHeaders()),
     };
 
     const response = await fetch(url, {

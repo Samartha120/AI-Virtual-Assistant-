@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { AppView } from '../types';
 import { api } from '../services/apiClient';
+import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
+import { auth as firebaseAuth } from '../lib/firebaseClient';
 
 interface AppState {
     currentView: AppView;
@@ -16,6 +18,7 @@ interface AppState {
     setTheme: (theme: 'dark' | 'light') => void;
     login: (user: any, token: string) => void;
     logout: () => void;
+    initAuthListener: () => () => void;
     setAiModel: (model: string) => void;
     setNotificationsEnabled: (enabled: boolean) => void;
     fetchSettings: () => Promise<void>;
@@ -31,6 +34,33 @@ export const useStore = create<AppState>((set, get) => ({
     isLoadingSettings: false,
     isAuthenticated: false,
     user: null,
+    initAuthListener: () => {
+        const unsubscribe = onAuthStateChanged(firebaseAuth, async (user: User | null) => {
+            if (!user) {
+                localStorage.removeItem('firebase-id-token');
+                set({ isAuthenticated: false, user: null });
+                return;
+            }
+
+            try {
+                const token = await user.getIdToken();
+                localStorage.setItem('firebase-id-token', token);
+            } catch {
+                // Token refresh failures should not crash the UI
+            }
+
+            set({
+                isAuthenticated: true,
+                user: {
+                    id: user.uid,
+                    email: user.email,
+                    displayName: user.displayName,
+                },
+            });
+        });
+
+        return unsubscribe;
+    },
     setCurrentView: (view) => set({ currentView: view }),
     toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
     setTheme: (theme) => {
@@ -41,7 +71,7 @@ export const useStore = create<AppState>((set, get) => ({
         localStorage.setItem('nexus-theme', theme);
     },
     login: (user, token) => {
-        localStorage.setItem('sb-access-token', token);
+        if (token) localStorage.setItem('firebase-id-token', token);
         // Apply persisted theme immediately so dashboard loads in the correct mode
         const savedTheme = (localStorage.getItem('nexus-theme') as 'dark' | 'light') || 'dark';
         document.documentElement.classList.remove('light', 'dark');
@@ -50,7 +80,8 @@ export const useStore = create<AppState>((set, get) => ({
         set({ isAuthenticated: true, user, theme: savedTheme });
     },
     logout: () => {
-        localStorage.removeItem('sb-access-token');
+        localStorage.removeItem('firebase-id-token');
+        signOut(firebaseAuth).catch(() => undefined);
         set({ isAuthenticated: false, user: null });
     },
     setAiModel: (aiModel) => set({ aiModel }),
