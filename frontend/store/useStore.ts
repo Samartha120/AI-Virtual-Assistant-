@@ -11,6 +11,7 @@ interface AppState {
     aiModel: string;
     notificationsEnabled: boolean;
     isAuthenticated: boolean;
+    isVerified: boolean;
     user: any | null;
     isLoadingSettings: boolean;
     setCurrentView: (view: AppView) => void;
@@ -19,6 +20,7 @@ interface AppState {
     login: (user: any, token: string) => void;
     logout: () => void;
     initAuthListener: () => () => void;
+    setVerificationComplete: (verified: boolean) => void;
     setAiModel: (model: string) => void;
     setNotificationsEnabled: (enabled: boolean) => void;
     fetchSettings: () => Promise<void>;
@@ -33,12 +35,13 @@ export const useStore = create<AppState>((set, get) => ({
     notificationsEnabled: true,
     isLoadingSettings: false,
     isAuthenticated: false,
+    isVerified: false,
     user: null,
     initAuthListener: () => {
         const unsubscribe = onAuthStateChanged(firebaseAuth, async (user: User | null) => {
             if (!user) {
                 localStorage.removeItem('firebase-id-token');
-                set({ isAuthenticated: false, user: null });
+                set({ isAuthenticated: false, isVerified: false, user: null });
                 return;
             }
 
@@ -51,10 +54,13 @@ export const useStore = create<AppState>((set, get) => ({
 
             set({
                 isAuthenticated: true,
+                isVerified: user.emailVerified || Boolean(user.phoneNumber),
                 user: {
                     id: user.uid,
                     email: user.email,
                     displayName: user.displayName,
+                    emailVerified: user.emailVerified,
+                    phoneNumber: user.phoneNumber,
                 },
             });
         });
@@ -77,12 +83,13 @@ export const useStore = create<AppState>((set, get) => ({
         document.documentElement.classList.remove('light', 'dark');
         document.documentElement.classList.add(savedTheme);
         document.documentElement.style.colorScheme = savedTheme;
-        set({ isAuthenticated: true, user, theme: savedTheme });
+        set({ isAuthenticated: true, isVerified: Boolean(user?.emailVerified) || Boolean(user?.phoneNumber), user, theme: savedTheme });
     },
+    setVerificationComplete: (verified) => set({ isVerified: verified }),
     logout: () => {
         localStorage.removeItem('firebase-id-token');
         signOut(firebaseAuth).catch(() => undefined);
-        set({ isAuthenticated: false, user: null });
+        set({ isAuthenticated: false, isVerified: false, user: null });
     },
     setAiModel: (aiModel) => set({ aiModel }),
     setNotificationsEnabled: (notificationsEnabled) => set({ notificationsEnabled }),

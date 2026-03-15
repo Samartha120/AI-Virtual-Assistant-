@@ -15,9 +15,10 @@ import AuthPage from './features/auth/AuthPage';
 import WritingStudio from './features/writing/WritingStudio';
 import FocusTimer from './features/focus/FocusTimer';
 import GoalTracker from './features/goals/GoalTracker';
+import VerifyEmailPage from './pages/auth/verify-email';
 
 const App: React.FC = () => {
-  const { currentView, isAuthenticated, initAuthListener } = useStore();
+  const { currentView, isAuthenticated, isVerified, initAuthListener } = useStore();
 
   React.useEffect(() => {
     const unsubscribe = initAuthListener();
@@ -59,6 +60,10 @@ const App: React.FC = () => {
 
   if (!isAuthenticated) {
     return <AuthPage />;
+  }
+
+  if (!isVerified) {
+    return <VerifyEmailPage />;
   }
 
   return (

@@ -3,8 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, User as UserIcon, Loader2, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import {
   createUserWithEmailAndPassword,
+  fetchSignInMethodsForEmail,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
+  sendEmailVerification,
   updateProfile,
 } from 'firebase/auth';
 
@@ -31,7 +33,7 @@ const AuthPage: React.FC = () => {
       case 'auth/invalid-credential':
       case 'auth/wrong-password':
       case 'auth/user-not-found':
-        return 'Invalid email or password. If you migrated from Nhost/Supabase, you must create this user in Firebase (use Sign up) or import users.';
+        return 'Invalid email or password.';
       case 'auth/invalid-email':
         return 'Please enter a valid email address.';
       case 'auth/too-many-requests':
@@ -82,6 +84,8 @@ const AuthPage: React.FC = () => {
             id: cred.user.uid,
             email: cred.user.email,
             displayName: cred.user.displayName,
+            emailVerified: cred.user.emailVerified,
+            phoneNumber: cred.user.phoneNumber,
           },
           token
         );
@@ -92,16 +96,48 @@ const AuthPage: React.FC = () => {
       if (fullName.trim()) {
         await updateProfile(cred.user, { displayName: fullName.trim() });
       }
+
+      // Professional verification flow: send verification email on sign-up.
+      try {
+        await sendEmailVerification(cred.user);
+      } catch {
+        // If this fails, user can still resend from the verification screen.
+      }
+
       const token = await cred.user.getIdToken();
       login(
         {
           id: cred.user.uid,
           email: cred.user.email,
           displayName: fullName.trim() || cred.user.displayName,
+          emailVerified: cred.user.emailVerified,
+          phoneNumber: cred.user.phoneNumber,
         },
         token
       );
     } catch (err: any) {
+      const normalizedEmail = normalizeEmail(email);
+      const code = err?.code as string | undefined;
+
+      // If the user doesn't exist in Firebase Auth, guide them to Sign up (no Firebase-console manual creation).
+      // We deliberately do NOT auto-create on failed login (security/account-takeover risk).
+      if (
+        isLogin &&
+        normalizedEmail &&
+        (code === 'auth/invalid-credential' || code === 'auth/user-not-found' || code === 'auth/wrong-password')
+      ) {
+        try {
+          const methods = await fetchSignInMethodsForEmail(auth, normalizedEmail);
+          if (!methods || methods.length === 0) {
+            setIsLogin(false);
+            setError('No Firebase account found for this email. Create one below (Sign up) or import users if you migrated from another auth provider.');
+            return;
+          }
+        } catch {
+          // ignore; fall through to generic error
+        }
+      }
+
       setError(getAuthErrorMessage(err));
     } finally {
       setIsLoading(false);
