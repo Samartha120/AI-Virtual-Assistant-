@@ -18,12 +18,24 @@ import GoalTracker from './features/goals/GoalTracker';
 import VerifyEmailPage from './pages/auth/verify-email';
 
 const App: React.FC = () => {
-  const { currentView, isAuthenticated, isVerified, requireVerification, initAuthListener } = useStore();
+  const { currentView, isAuthenticated, isVerified, isAuthLoading, initAuthListener } = useStore();
 
   React.useEffect(() => {
     const unsubscribe = initAuthListener();
     return () => unsubscribe();
   }, [initAuthListener]);
+
+  if (isAuthLoading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-background">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center mb-4">
+            <span className="text-xl font-bold text-primary">N</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const renderView = () => {
     console.log("App renderView executing. currentView is:", currentView);
@@ -62,7 +74,7 @@ const App: React.FC = () => {
     return <AuthPage />;
   }
 
-  if (requireVerification && !isVerified) {
+  if (!isVerified) {
     return <VerifyEmailPage />;
   }
 

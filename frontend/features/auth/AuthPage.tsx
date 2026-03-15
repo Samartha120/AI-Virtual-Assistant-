@@ -87,8 +87,7 @@ const AuthPage: React.FC = () => {
             emailVerified: cred.user.emailVerified,
             phoneNumber: cred.user.phoneNumber,
           },
-          token,
-          false
+          token
         );
         return;
       }
@@ -115,8 +114,7 @@ const AuthPage: React.FC = () => {
           emailVerified: cred.user.emailVerified,
           phoneNumber: cred.user.phoneNumber,
         },
-        token,
-        true
+        token
       );
     } catch (err: any) {
       const normalizedEmail = normalizeEmail(email);

@@ -16,11 +16,11 @@ function formatFirebaseAuthError(err: any): string {
   const code = err?.code as string | undefined;
   switch (code) {
     case 'auth/too-many-requests':
-      return 'Too many requests. Please wait a bit and try again.';
+      return 'Firebase allows only a few emails per minute. Please wait 1-2 minutes and try again. And check your Spam/Junk folder!';
     case 'auth/network-request-failed':
       return 'Network error. Please check your connection and try again.';
     default:
-      return err?.message || 'Something went wrong. Please try again.';
+      return err?.message || 'Something went wrong. Please check your Spam folder or try again.';
   }
 }
 
@@ -48,7 +48,7 @@ function canSendEmailNow(): { ok: boolean; message?: string } {
   const now = Date.now();
   const history = loadEmailSendHistory().filter((t) => now - t < EMAIL_RATE_LIMIT_WINDOW_MS);
   if (history.length >= EMAIL_RATE_LIMIT_MAX_SENDS) {
-    return { ok: false, message: 'You’ve requested too many verification emails recently. Please wait a few minutes and try again.' };
+    return { ok: false, message: 'You requested multiple emails. Please wait a few minutes, and check your Spam/Junk folder.' };
   }
   return { ok: true };
 }
@@ -139,7 +139,7 @@ export default function VerifyEmailPage() {
       if (isAccountVerified(auth.currentUser)) {
         setVerificationComplete(true);
       } else {
-        setError('Not verified yet. Please click the link in your email and try again.');
+        setError('Not verified yet. Please check your Inbox and Spam/Junk folders, click the link, and try again.');
       }
     } catch (err: any) {
       setError(formatFirebaseAuthError(err));
@@ -166,7 +166,10 @@ export default function VerifyEmailPage() {
             <span className="text-3xl font-bold text-white">N</span>
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Verify your email</h1>
-          <p className="text-sm text-gray-400 mt-2">We sent a verification link to your email.</p>
+          <p className="text-sm text-gray-400 mt-2">
+             We sent a verification link to your email.<br/>
+             <span className="text-amber-400 font-medium">IMPORTANT: Please check your Spam/Junk folder if you don't see it!</span>
+          </p>
         </div>
 
         {error && (
