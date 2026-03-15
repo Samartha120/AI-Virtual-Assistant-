@@ -4,6 +4,7 @@ import { Mail, Lock, User as UserIcon, Loader2, ArrowRight, Eye, EyeOff } from '
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  sendPasswordResetEmail,
   updateProfile,
 } from 'firebase/auth';
 
@@ -21,6 +22,52 @@ const AuthPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
+  const normalizeEmail = (value: string) => value.trim();
+
+  const getAuthErrorMessage = (err: any) => {
+    const code = err?.code as string | undefined;
+
+    switch (code) {
+      case 'auth/invalid-credential':
+      case 'auth/wrong-password':
+      case 'auth/user-not-found':
+        return 'Invalid email or password. If you migrated from Nhost/Supabase, you must create this user in Firebase (use Sign up) or import users.';
+      case 'auth/invalid-email':
+        return 'Please enter a valid email address.';
+      case 'auth/too-many-requests':
+        return 'Too many attempts. Please wait a bit and try again.';
+      case 'auth/network-request-failed':
+        return 'Network error. Please check your connection and try again.';
+      case 'auth/email-already-in-use':
+        return 'An account with this email already exists. Please log in instead.';
+      case 'auth/weak-password':
+        return 'Password is too weak. Use at least 6 characters.';
+      case 'auth/operation-not-allowed':
+        return 'Email/password sign-in is not enabled for this Firebase project.';
+      default:
+        return err?.message || 'An error occurred. Please try again.';
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) {
+      setError('Enter your email above, then click “Forgot password?” again.');
+      return;
+    }
+
+    setError(null);
+    setIsLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, normalizedEmail);
+      setError('Password reset email sent. Please check your inbox (and spam).');
+    } catch (err: any) {
+      setError(getAuthErrorMessage(err));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -28,7 +75,7 @@ const AuthPage: React.FC = () => {
 
     try {
       if (isLogin) {
-        const cred = await signInWithEmailAndPassword(auth, email, password);
+        const cred = await signInWithEmailAndPassword(auth, normalizeEmail(email), password);
         const token = await cred.user.getIdToken();
         login(
           {
@@ -41,7 +88,7 @@ const AuthPage: React.FC = () => {
         return;
       }
 
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      const cred = await createUserWithEmailAndPassword(auth, normalizeEmail(email), password);
       if (fullName.trim()) {
         await updateProfile(cred.user, { displayName: fullName.trim() });
       }
@@ -55,7 +102,7 @@ const AuthPage: React.FC = () => {
         token
       );
     } catch (err: any) {
-      setError(err?.message || 'An error occurred. Please try again.');
+      setError(getAuthErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -133,6 +180,7 @@ const AuthPage: React.FC = () => {
               {isLogin && (
                 <button
                   type="button"
+                  onClick={handleForgotPassword}
                   className="text-xs text-primary hover:text-primary/80 transition-colors"
                 >
                   Forgot password?
