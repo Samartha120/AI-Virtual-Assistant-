@@ -14,7 +14,7 @@ import {
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { Plus, Sparkles, Loader2 } from 'lucide-react';
 import { Task } from '../../types';
-import { generateTaskAnalysis } from '../../services/geminiService';
+import { generateTaskAnalysis } from '../../services/grokService';
 import { storage } from '../../services/storageService';
 import { KanbanColumn } from '../../components/tasks/KanbanColumn';
 import { TaskCard } from '../../components/tasks/TaskCard';
@@ -79,7 +79,7 @@ const TaskBoard: React.FC = () => {
         console.log("Decomposing:", taskTitle);
 
         // Dynamic import to avoid circular dep if needed, or just standard import
-        const { decomposeTask } = await import('../../services/geminiService');
+        const { decomposeTask } = await import('../../services/grokService');
 
         const subtasks = await decomposeTask(taskTitle);
 

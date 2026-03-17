@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { FileText, Upload, ChevronRight, File, Loader2, Play, Paperclip } from 'lucide-react';
-import { analyzeDocument } from '../../services/geminiService';
+import { analyzeDocument } from '../../services/grokService';
 import { AnalysisResult } from '../../types';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';

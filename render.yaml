@@ -22,7 +22,7 @@ services:
         sync: false
       - key: FIREBASE_STORAGE_BUCKET
         sync: false
-      - key: GEMINI_API_KEY
+      - key: GROK_API_KEY
         sync: false
       - key: LOCAL_AI_URL
         sync: false

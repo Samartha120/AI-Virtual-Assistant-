@@ -195,8 +195,8 @@ const SettingsPage: React.FC = () => {
                                         <h3 className="text-sm font-medium text-gray-400">Default Model</h3>
                                         <div className="space-y-3">
                                             {[
-                                                { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', desc: 'Most capable, best for complex tasks.' },
-                                                { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', desc: 'Fastest, best for high-frequency queries.' },
+                                                { id: 'grok-2-latest', name: 'Grok 2 Latest', desc: 'Most capable model by xAI.' },
+                                                { id: 'grok-beta', name: 'Grok Beta', desc: 'Fastest for general queries.' },
                                             ].map(model => (
                                                 <div
                                                     key={model.id}

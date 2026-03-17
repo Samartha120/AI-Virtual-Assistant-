@@ -1,12 +1,12 @@
 # NexusAI Enterprise OS - Backend
 
-This backend is built with Node.js and Express, using Firebase Admin SDK for authentication verification, Firestore for data, and Firebase Storage for uploads. It powers the NexusAI Enterprise OS with features like AI Chat (Gemini), Document Analysis, and Task Management.
+This backend is built with Node.js and Express, using Firebase Admin SDK for authentication verification, Firestore for data, and Firebase Storage for uploads. It powers the NexusAI Enterprise OS with features like AI Chat (Grok), Document Analysis, and Task Management.
 
 ## Prerequisites
 
 - Node.js (v18+)
 - Firebase project (Firestore + Authentication + Storage enabled)
-- Google Cloud Account (for Gemini API)
+- xAI account / Grok API key
 
 ## Setup
 
@@ -18,7 +18,7 @@ This backend is built with Node.js and Express, using Firebase Admin SDK for aut
     ```
 3.  **Environment Variables**:
     - Copy `.env.example` to `.env`.
-    - Fill in your Firebase Admin credentials and Gemini API Key.
+    - Fill in your Firebase Admin credentials and Grok API Key.
     ```bash
     cp .env.example .env
     ```
@@ -50,7 +50,12 @@ This backend is built with Node.js and Express, using Firebase Admin SDK for aut
 - Protected endpoints require `Authorization: Bearer <Firebase ID token>`.
 
 ### AI Chat
-- `POST /api/ai/chat` - Send message to Gemini
+- `GET /api/ai-status` - Verify Grok key is set (preview only)
+- `POST /api/chat` - Send message to Grok (public)
+- `POST /api/chat/stream` - Stream Grok response (public, SSE)
+- `POST /api/brainstorm` - Brainstorm ideas (public)
+- `POST /api/analyze` - Analyze document text (public)
+- `POST /api/tasks/ai` - Task analysis/decomposition (public)
 - `GET /api/ai/history` - Get chat history
 - `DELETE /api/ai/history` - Clear chat history
 
@@ -67,5 +72,5 @@ This backend is built with Node.js and Express, using Firebase Admin SDK for aut
 - `controllers/` - Route logic
 - `middleware/` - Auth and Upload middleware
 - `routes/` - API route definitions
-- `services/` - External services (Gemini, Firestore service)
+- `services/` - External services (Grok, Firestore service)
 - `utils/` - Helpers (Response handler)

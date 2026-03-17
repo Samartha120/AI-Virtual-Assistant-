@@ -9,8 +9,8 @@ const getSettings = async (req, res) => {
         // Return default settings if none exist yet
         const defaultSettings = {
             theme: 'dark',
-            aiMode: 'gemini',             // Used by frontend Settings Panel
-            ai_model: 'gemini-1.5-flash', // Underlying model name
+            aiMode: 'grok',             // Used by frontend Settings Panel
+            ai_model: 'grok-2-latest',  // Underlying model name
             notifications: true,
             language: 'en'
         };

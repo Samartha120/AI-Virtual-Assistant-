@@ -22,7 +22,7 @@ export const useStore = create<AppState>((set, get) => ({
     currentView: AppView.DASHBOARD,
     isSidebarOpen: true,
     theme: 'dark',
-    aiModel: 'gemini-1.5-pro',
+    aiModel: 'grok-2-latest',
     notificationsEnabled: true,
     isLoadingSettings: false,
     setCurrentView: (view) => set({ currentView: view }),
@@ -39,7 +39,7 @@ export const useStore = create<AppState>((set, get) => ({
                 const s = response.data;
                 set({
                     theme: s.theme || 'dark',
-                    aiModel: s.ai_model || 'gemini-1.5-pro',
+                    aiModel: s.ai_model || 'grok-2-latest',
                     notificationsEnabled: s.notifications ?? true
                 });
             }

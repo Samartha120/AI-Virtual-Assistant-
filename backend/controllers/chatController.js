@@ -1,4 +1,4 @@
-const { generateGeminiResponse } = require('../services/gemini.service');
+const { generateGrokResponse } = require('../services/grok.service');
 const { saveChatMessage, getChatHistory, clearChatHistory } = require('../services/firebase.service');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 
@@ -15,7 +15,7 @@ const chat = async (req, res) => {
         const dbHistory = await getChatHistory(userId, 10);
 
         // 2. Generate AI Response
-        const aiResponseText = await generateGeminiResponse(message.trim(), dbHistory);
+        const aiResponseText = await generateGrokResponse(message.trim(), dbHistory);
 
         // 3. Save User Message to DB
         await saveChatMessage(userId, 'user', message.trim());

@@ -1,23 +1,32 @@
 const express = require('express');
 const router = express.Router();
 const {
-    generateGeminiResponse,
+    generateGrokResponse,
+    streamGrokResponse,
     brainstormIdeas,
     analyzeDocument,
     generateTaskAnalysis,
     decomposeTask,
-} = require('../services/gemini.service');
+} = require('../services/grok.service');
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GET /api/ai-status  — health check to verify Gemini key is set
+// GET /api/ai-status  — health check to verify Grok key is set
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/ai-status', (req, res) => {
     res.json({
         success: true,
-        keySet: !!process.env.GEMINI_API_KEY,
-        keyPreview: process.env.GEMINI_API_KEY
-            ? `${process.env.GEMINI_API_KEY.slice(0, 8)}...`
-            : 'NOT SET'
+        keySet: !!process.env.GROK_API_KEY,
+        keyPreview: process.env.GROK_API_KEY
+            ? `${process.env.GROK_API_KEY.slice(0, 8)}...`
+            : 'NOT SET',
+        baseURL: process.env.GROK_BASE_URL || (/^gsk_/i.test(process.env.GROK_API_KEY || '') ? 'https://api.groq.com/openai/v1' : 'https://api.x.ai/v1'),
+        provider: (process.env.GROK_BASE_URL || '').includes('groq.com')
+            ? 'groq'
+            : (process.env.GROK_BASE_URL || '').includes('x.ai')
+              ? 'xai'
+              : /^gsk_/i.test(process.env.GROK_API_KEY || '')
+                ? 'groq'
+                : 'xai',
     });
 });
 
@@ -33,16 +42,59 @@ router.post('/chat', async (req, res) => {
             return res.status(400).json({ success: false, error: 'Message is required' });
         }
 
-        const reply = await generateGeminiResponse(message.trim(), history);
+        const reply = await generateGrokResponse(message.trim(), history);
         res.json({ success: true, reply });
 
     } catch (error) {
         console.error('[/api/chat Error]', error);
-        res.status(500).json({
+        res.status(error.status || 500).json({
             success: false,
             error: 'AI processing failed',
-            detail: error.message  // expose detail for debugging
+            detail: error.message, // expose detail for debugging
+            code: error.code,
         });
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/chat/stream (SSE)
+// Body: { message: string, history?: Array<{role, content}> }
+// Streams: { delta: string } events + final [DONE]
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/chat/stream', async (req, res) => {
+    const { message, history = [] } = req.body || {};
+
+    if (!message || typeof message !== 'string' || !message.trim()) {
+        return res.status(400).json({ success: false, error: 'Message is required' });
+    }
+
+    res.status(200);
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+
+    const controller = new AbortController();
+    const onClose = () => {
+        controller.abort();
+    };
+    req.on('close', onClose);
+
+    try {
+        const stream = await streamGrokResponse(message.trim(), history, { signal: controller.signal });
+
+        for await (const delta of stream) {
+            res.write(`data: ${JSON.stringify({ delta })}\n\n`);
+        }
+
+        res.write('data: [DONE]\n\n');
+        res.end();
+    } catch (error) {
+        console.error('[/api/chat/stream Error]', error);
+        res.write(`data: ${JSON.stringify({ error: error.message, code: error.code })}\n\n`);
+        res.write('data: [DONE]\n\n');
+        res.end();
+    } finally {
+        req.off('close', onClose);
     }
 });
 
@@ -63,7 +115,7 @@ router.post('/brainstorm', async (req, res) => {
 
     } catch (error) {
         console.error('[/api/brainstorm Error]', error);
-        res.status(500).json({ success: false, error: 'Brainstorming failed', detail: error.message });
+        res.status(error.status || 500).json({ success: false, error: 'Brainstorming failed', detail: error.message, code: error.code });
     }
 });
 
@@ -92,7 +144,7 @@ router.post('/analyze', async (req, res) => {
 
     } catch (error) {
         console.error('[/api/analyze Error]', error);
-        res.status(500).json({ success: false, error: 'Document analysis failed', detail: error.message });
+        res.status(error.status || 500).json({ success: false, error: 'Document analysis failed', detail: error.message, code: error.code });
     }
 });
 
@@ -126,7 +178,7 @@ router.post('/tasks/ai', async (req, res) => {
 
     } catch (error) {
         console.error('[/api/tasks/ai Error]', error);
-        res.status(500).json({ success: false, error: 'Task AI failed', detail: error.message });
+        res.status(error.status || 500).json({ success: false, error: 'Task AI failed', detail: error.message, code: error.code });
     }
 });
 

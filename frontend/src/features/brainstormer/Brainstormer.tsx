@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Lightbulb, Zap, Sparkles, Copy, RefreshCw } from 'lucide-react';
-import { brainstormIdeas } from '../../services/geminiService';
+import { brainstormIdeas } from '../../services/grokService';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';

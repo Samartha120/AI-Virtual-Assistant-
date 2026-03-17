@@ -1,68 +1,80 @@
 
-import React, { useState, useRef, useCallback } from 'react';
-import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
+import React, { useCallback, useRef, useState } from 'react';
+import { askNexus } from '../../services/grokService';
 
 const LiveAssistant: React.FC = () => {
   const [isActive, setIsActive] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [transcripts, setTranscripts] = useState<string[]>([]);
 
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const outputAudioContextRef = useRef<AudioContext | null>(null);
-  const nextStartTimeRef = useRef(0);
-  const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
-  const sessionPromiseRef = useRef<Promise<any> | null>(null);
+  const recognitionRef = useRef<any | null>(null);
+  const stoppedRef = useRef(false);
+  const processingRef = useRef(false);
+  const queueRef = useRef<string[]>([]);
 
-  const encode = (bytes: Uint8Array) => {
-    let binary = '';
-    const len = bytes.byteLength;
-    for (let i = 0; i < len; i++) {
-      binary += String.fromCharCode(bytes[i]);
+  const pushLine = useCallback((line: string) => {
+    setTranscripts((prev) => [...prev, line].slice(-6));
+  }, []);
+
+  const speak = useCallback((text: string) => {
+    try {
+      if (!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.rate = 1.02;
+      utter.pitch = 1;
+      utter.volume = 1;
+      window.speechSynthesis.speak(utter);
+    } catch {
+      // Non-fatal
     }
-    return btoa(binary);
-  };
+  }, []);
 
-  const decode = (base64: string) => {
-    const binaryString = atob(base64);
-    const len = binaryString.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    return bytes;
-  };
+  const drainQueue = useCallback(async () => {
+    if (processingRef.current) return;
+    processingRef.current = true;
+    try {
+      while (!stoppedRef.current && queueRef.current.length > 0) {
+        const userText = (queueRef.current.shift() || '').trim();
+        if (!userText) continue;
+        pushLine(`You: ${userText}`);
 
-  const decodeAudioData = async (
-    data: Uint8Array,
-    ctx: AudioContext,
-    sampleRate: number,
-    numChannels: number,
-  ): Promise<AudioBuffer> => {
-    const dataInt16 = new Int16Array(data.buffer);
-    const frameCount = dataInt16.length / numChannels;
-    const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+        let reply = '';
+        try {
+          reply = await askNexus(
+            `You are NexusAI, an elite academic and professional assistant. Provide brief, ultra-intelligent, and concise verbal responses.\n\nUser (spoken): ${userText}`
+          );
+        } catch (err) {
+          console.error('LiveAssistant Grok error:', err);
+          reply = 'I encountered a neural synchronization error. Please try again.';
+        }
 
-    for (let channel = 0; channel < numChannels; channel++) {
-      const channelData = buffer.getChannelData(channel);
-      for (let i = 0; i < frameCount; i++) {
-        channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+        pushLine(`Nexus: ${reply}`);
+        speak(reply);
       }
+    } finally {
+      processingRef.current = false;
     }
-    return buffer;
-  };
+  }, [pushLine, speak]);
 
   const stopSession = useCallback(async () => {
-    if (sessionPromiseRef.current) {
-      const session = await sessionPromiseRef.current;
-      session.close();
-      sessionPromiseRef.current = null;
+    stoppedRef.current = true;
+    queueRef.current = [];
+    processingRef.current = false;
+
+    try {
+      recognitionRef.current?.stop?.();
+    } catch {
+      // ignore
     }
-    if (audioContextRef.current) await audioContextRef.current.close();
-    if (outputAudioContextRef.current) await outputAudioContextRef.current.close();
-    
-    sourcesRef.current.forEach(s => { try { s.stop(); } catch(e) {} });
-    sourcesRef.current.clear();
-    
+    recognitionRef.current = null;
+
+    try {
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    } catch {
+      // ignore
+    }
+
     setIsActive(false);
     setIsConnecting(false);
   }, []);
@@ -70,91 +82,71 @@ const LiveAssistant: React.FC = () => {
   const startSession = async () => {
     try {
       setIsConnecting(true);
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
-      
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-      outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+      stoppedRef.current = false;
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const SpeechRecognition =
+        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-      const sessionPromise = ai.live.connect({
-        model: 'gemini-2.5-flash-native-audio-preview-12-2025',
-        callbacks: {
-          onopen: () => {
-            setIsActive(true);
-            setIsConnecting(false);
+      if (!SpeechRecognition) {
+        setIsConnecting(false);
+        alert('Live Assistant requires Speech Recognition (Chrome / Edge).');
+        return;
+      }
 
-            const source = audioContextRef.current!.createMediaStreamSource(stream);
-            const scriptProcessor = audioContextRef.current!.createScriptProcessor(4096, 1, 1);
-            
-            scriptProcessor.onaudioprocess = (e) => {
-              const inputData = e.inputBuffer.getChannelData(0);
-              const l = inputData.length;
-              const int16 = new Int16Array(l);
-              for (let i = 0; i < l; i++) {
-                int16[i] = inputData[i] * 32768;
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        setIsActive(true);
+        setIsConnecting(false);
+        pushLine('Nexus: Neural link established. Speak when ready.');
+      };
+
+      recognition.onerror = (e: any) => {
+        console.error('Speech recognition error:', e);
+        pushLine('Nexus: Microphone link unstable. Reconnect to continue.');
+        stopSession();
+      };
+
+      recognition.onend = () => {
+        if (!stoppedRef.current) {
+          try {
+            setTimeout(() => {
+              try {
+                recognition.start();
+              } catch {
+                // ignore
               }
-              const pcmBlob = {
-                data: encode(new Uint8Array(int16.buffer)),
-                mimeType: 'audio/pcm;rate=16000',
-              };
-              
-              sessionPromise.then((session) => {
-                session.sendRealtimeInput({ media: pcmBlob });
-              });
-            };
-
-            source.connect(scriptProcessor);
-            scriptProcessor.connect(audioContextRef.current!.destination);
-          },
-          onmessage: async (message: LiveServerMessage) => {
-            if (message.serverContent?.outputTranscription) {
-               const text = message.serverContent.outputTranscription.text;
-               setTranscripts(prev => [...prev.slice(-3), `Nexus: ${text}`]);
-            }
-
-            const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
-            if (base64Audio && outputAudioContextRef.current) {
-              nextStartTimeRef.current = Math.max(nextStartTimeRef.current, outputAudioContextRef.current.currentTime);
-              const audioBuffer = await decodeAudioData(decode(base64Audio), outputAudioContextRef.current, 24000, 1);
-              const source = outputAudioContextRef.current.createBufferSource();
-              source.buffer = audioBuffer;
-              source.connect(outputAudioContextRef.current.destination);
-              source.start(nextStartTimeRef.current);
-              nextStartTimeRef.current += audioBuffer.duration;
-              sourcesRef.current.add(source);
-              source.onended = () => sourcesRef.current.delete(source);
-            }
-
-            if (message.serverContent?.interrupted) {
-              sourcesRef.current.forEach(s => { try { s.stop(); } catch(e) {} });
-              sourcesRef.current.clear();
-              nextStartTimeRef.current = 0;
-            }
-          },
-          onerror: (e) => {
-            console.error('Live session error:', e);
-            stopSession();
-          },
-          onclose: () => {
-            stopSession();
+            }, 250);
+          } catch {
+            // ignore
           }
-        },
-        config: {
-          responseModalities: [Modality.AUDIO],
-          systemInstruction: 'You are NexusAI, an elite academic and professional assistant. Provide brief, ultra-intelligent, and concise verbal responses.',
-          speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } }
-          },
-          outputAudioTranscription: {}
         }
-      });
+      };
 
-      sessionPromiseRef.current = sessionPromise;
+      recognition.onresult = (event: any) => {
+        let finalText = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const result = event.results[i];
+          if (result.isFinal) {
+            finalText += String(result[0]?.transcript || '');
+          }
+        }
+        finalText = finalText.trim();
+        if (!finalText) return;
+
+        queueRef.current.push(finalText);
+        drainQueue();
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
     } catch (err) {
       console.error('Failed to start Live session:', err);
       setIsConnecting(false);
-      alert('Could not establish neural link. Ensure microphone access is granted and API key is valid.');
+      alert('Could not establish neural link. Ensure microphone access is granted.');
     }
   };
 
@@ -169,7 +161,7 @@ const LiveAssistant: React.FC = () => {
             Conversational Intelligence
           </h2>
           <p className="text-gray-500 text-lg">
-            Direct audio-to-audio interaction with zero-latency reasoning.
+            Voice-to-text interaction with near real-time responses.
           </p>
         </header>
 

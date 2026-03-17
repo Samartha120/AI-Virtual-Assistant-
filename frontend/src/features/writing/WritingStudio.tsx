@@ -4,7 +4,7 @@ import {
     PenLine, Sparkles, Copy, RefreshCw, CheckCheck,
     WrapText, Smile, Briefcase, Globe, AlignLeft, Expand, Loader2
 } from 'lucide-react';
-import { askNexus } from '../../services/geminiService';
+import { askNexus } from '../../services/grokService';
 
 // ─────────────────────────────── types ────────────────────────────────────────
 type Action = {

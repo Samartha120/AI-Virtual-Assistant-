@@ -186,7 +186,7 @@ const Dashboard: React.FC = () => {
               <div className="divide-y divide-white/5">
                 {[
                   { event: 'System initialization complete', time: '14:42:01', type: 'info' },
-                  { event: 'Neural engine connected to Gemini API', time: '14:41:55', type: 'success' },
+                  { event: 'Neural engine connected to Grok API', time: '14:41:55', type: 'success' },
                   { event: 'Database synchronization finished', time: '14:41:42', type: 'info' },
                   { event: 'Security protocols active', time: '14:41:30', type: 'success' },
                 ].map((log, i) => (

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Timer, Play, Pause, RotateCcw, Sparkles, Flame, Settings2, X } from 'lucide-react';
-import { askNexus } from '../../services/geminiService';
+import { askNexus } from '../../services/grokService';
 
 // ─────────────────────── constants ────────────────────────────────────────────
 const DEFAULT_WORK = 25;

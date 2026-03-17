@@ -53,7 +53,7 @@ const generalLimiter = rateLimit({
     message: { success: false, message: 'Too many requests. Please try again in 15 minutes.' }
 });
 
-// Strict limiter for AI endpoints (Gemini API quota protection)
+// Strict limiter for AI endpoints (Grok API quota protection)
 const aiLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
     max: 15,
@@ -74,7 +74,7 @@ const authLimiter = rateLimit({
 app.use(generalLimiter);
 
 // ─── Routes ───────────────────────────────────────────────────────
-// Public Gemini AI routes (no auth required) — /api/chat, /api/brainstorm, /api/analyze, /api/tasks/ai
+// Public Grok AI routes (no auth required) — /api/chat, /api/chat/stream, /api/brainstorm, /api/analyze, /api/tasks/ai
 app.use('/api', aiLimiter, require('./routes/ai.routes'));
 
 // Authenticated routes

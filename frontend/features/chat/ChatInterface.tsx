@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage as IChatMessage } from '../../types';
-import { askNexus, getChatHistory } from '../../services/geminiService';
+import { askNexus, getChatHistory } from '../../services/grokService';
 import { ChatHeader } from '../../components/chat/ChatHeader';
 import { ChatMessage } from '../../components/chat/ChatMessage';
 import { ChatInput } from '../../components/chat/ChatInput';

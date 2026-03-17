@@ -1,8 +1,11 @@
 /// <reference types="vite/client" />
 /**
  * geminiService.ts (frontend/services — legacy location)
- * Re-exports from the canonical src/services/geminiService.ts
- * so any imports via '../../services/geminiService' still work.
+ * Legacy compatibility shim.
+ *
+ * Gemini/Google AI has been fully removed.
+ * We keep this filename so any existing imports via '../../services/geminiService'
+ * continue to work, but all calls are proxied to the backend Grok integration.
  */
 export {
   askNexus,
@@ -12,4 +15,5 @@ export {
   decomposeTask,
   getChatHistory,
   clearChatHistory,
-} from '../src/services/geminiService';
+  askNexusStream,
+} from './grokService';
