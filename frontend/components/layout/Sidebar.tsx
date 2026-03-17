@@ -141,7 +141,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
           <NeuralAvatar state="idle" size="sm" className={isCollapsed ? "" : "mr-3"} />
           {!isCollapsed && (
             <div className="overflow-hidden">
-              <div className="text-sm font-medium text-white truncate w-40">{user?.user_metadata?.full_name || user?.email || 'Nexus User'}</div>
+              <div className="text-sm font-medium text-white truncate w-40">{user?.displayName || user?.email || 'Nexus User'}</div>
               <div className="text-[10px] text-emerald-400">Online</div>
             </div>
           )}

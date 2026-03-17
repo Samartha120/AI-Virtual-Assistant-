@@ -11,7 +11,11 @@ import {
     Sun,
     Save,
     CheckCircle2,
-    Loader2
+    Loader2,
+    LogOut,
+    Plus,
+    X,
+    Users
 } from 'lucide-react';
 import { NeuralAvatar } from '../../components/ui/NeuralAvatar';
 
@@ -19,7 +23,8 @@ const SettingsPage: React.FC = () => {
     console.log("SettingsPage component mounting/rendering");
     const {
         theme, setTheme, aiModel, setAiModel, notificationsEnabled, setNotificationsEnabled,
-        fetchSettings, saveSettings, isLoadingSettings, user
+        fetchSettings, saveSettings, isLoadingSettings, user,
+        knownAccounts, removeKnownAccount, setTargetSwitchEmail, logout
     } = useStore();
 
     const [activeTab, setActiveTab] = useState<'profile' | 'appearance' | 'ai' | 'notifications'>('profile');
@@ -162,6 +167,66 @@ const SettingsPage: React.FC = () => {
                                                 defaultValue={user?.email || 'user@nexusai.enterprise'}
                                                 className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-primary/50 transition-colors"
                                             />
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-8 mt-8 border-t border-white/5">
+                                        <h2 className="text-xl font-semibold mb-4">Switch Accounts</h2>
+                                        <p className="text-sm text-gray-400 mb-6">Quickly switch between saved accounts on this device.</p>
+                                        
+                                        <div className="space-y-3">
+                                            {knownAccounts.map((account: any) => (
+                                                <div key={account.email} className="flex items-center justify-between p-4 bg-black/20 border border-white/10 rounded-xl hover:bg-white/5 transition-colors group">
+                                                    <div className="flex items-center space-x-4">
+                                                        <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                                                            {account.photoURL ? (
+                                                                <img src={account.photoURL} alt={account.displayName || ''} className="w-full h-full rounded-full object-cover" />
+                                                            ) : (
+                                                                <User size={20} className="text-primary" />
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <div className="font-medium text-white flex items-center gap-2">
+                                                                {account.displayName || 'Nexus User'}
+                                                                {user?.email === account.email && (
+                                                                    <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">Active</span>
+                                                                )}
+                                                            </div>
+                                                            <div className="text-sm text-gray-400">{account.email}</div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        {user?.email !== account.email && (
+                                                            <button 
+                                                                onClick={() => {
+                                                                    setTargetSwitchEmail(account.email);
+                                                                    logout();
+                                                                }}
+                                                                className="px-3 py-1.5 flex items-center text-sm bg-white/5 hover:bg-primary/20 text-gray-300 hover:text-primary rounded-lg transition-colors border border-white/5 hover:border-primary/30"
+                                                            >
+                                                                <LogOut size={14} className="mr-2" />
+                                                                Switch
+                                                            </button>
+                                                        )}
+                                                        <button 
+                                                            onClick={() => removeKnownAccount(account.email)}
+                                                            className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                                                            title="Remove account from device"
+                                                        >
+                                                            <X size={16} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            
+                                            <button 
+                                                onClick={() => logout()}
+                                                className="w-full flex items-center justify-center p-4 border border-dashed border-white/20 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 hover:border-white/40 transition-all gap-2"
+                                            >
+                                                <Plus size={18} />
+                                                <span>Add another account</span>
+                                            </button>
                                         </div>
                                     </div>
                                 </div>

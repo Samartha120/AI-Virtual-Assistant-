@@ -1,5 +1,5 @@
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, setPersistence, browserSessionPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
@@ -23,3 +23,12 @@ export const firebaseApp = initFirebaseApp();
 export const auth = getAuth(firebaseApp);
 export const db = getFirestore(firebaseApp);
 export const storage = getStorage(firebaseApp);
+
+// Enforce session persistence: user will be logged out when the browser window/tab is closed
+setPersistence(auth, browserSessionPersistence)
+  .then(() => {
+    console.log("Firebase persistence set to browserSessionPersistence");
+  })
+  .catch((error) => {
+    console.error("Error setting Firebase persistence:", error);
+  });

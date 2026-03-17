@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, User as UserIcon, Loader2, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import {
@@ -14,10 +14,18 @@ import { auth } from '../../lib/firebaseClient';
 import { useStore } from '../../store/useStore';
 
 const AuthPage: React.FC = () => {
-  const { login } = useStore();
+  const { login, targetSwitchEmail, setTargetSwitchEmail } = useStore();
 
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
+
+  useEffect(() => {
+    if (targetSwitchEmail) {
+      setEmail(targetSwitchEmail);
+      setIsLogin(true);
+      setTargetSwitchEmail(null);
+    }
+  }, [targetSwitchEmail, setTargetSwitchEmail]);
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -122,22 +130,7 @@ const AuthPage: React.FC = () => {
 
       // If the user doesn't exist in Firebase Auth, guide them to Sign up (no Firebase-console manual creation).
       // We deliberately do NOT auto-create on failed login (security/account-takeover risk).
-      if (
-        isLogin &&
-        normalizedEmail &&
-        (code === 'auth/invalid-credential' || code === 'auth/user-not-found' || code === 'auth/wrong-password')
-      ) {
-        try {
-          const methods = await fetchSignInMethodsForEmail(auth, normalizedEmail);
-          if (!methods || methods.length === 0) {
-            setIsLogin(false);
-            setError('No Firebase account found for this email. Create one below (Sign up) or import users if you migrated from another auth provider.');
-            return;
-          }
-        } catch {
-          // ignore; fall through to generic error
-        }
-      }
+      // Note: fetchSignInMethodsForEmail is removed here as it frequently breaks with Firebase Email Enumeration Protection.
 
       setError(getAuthErrorMessage(err));
     } finally {

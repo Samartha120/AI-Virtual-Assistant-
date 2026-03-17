@@ -15,6 +15,8 @@ interface AppState {
     isAuthLoading: boolean;
     user: any | null;
     isLoadingSettings: boolean;
+    knownAccounts: any[];
+    targetSwitchEmail: string | null;
     setCurrentView: (view: AppView) => void;
     toggleSidebar: () => void;
     setTheme: (theme: 'dark' | 'light') => void;
@@ -26,6 +28,9 @@ interface AppState {
     setNotificationsEnabled: (enabled: boolean) => void;
     fetchSettings: () => Promise<void>;
     saveSettings: (settings: any) => Promise<void>;
+    addKnownAccount: (account: any) => void;
+    removeKnownAccount: (email: string) => void;
+    setTargetSwitchEmail: (email: string | null) => void;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -39,6 +44,8 @@ export const useStore = create<AppState>((set, get) => ({
     isVerified: false,
     isAuthLoading: true,
     user: null,
+    knownAccounts: JSON.parse(localStorage.getItem('nexus-known-accounts') || '[]'),
+    targetSwitchEmail: null,
     initAuthListener: () => {
         const unsubscribe = onAuthStateChanged(firebaseAuth, async (user: User | null) => {
             if (!user) {
@@ -81,6 +88,25 @@ export const useStore = create<AppState>((set, get) => ({
     },
     login: (user, token) => {
         if (token) localStorage.setItem('firebase-id-token', token);
+
+        // Update known accounts
+        if (user && user.email) {
+            const currentAccounts = get().knownAccounts;
+            const existingIndex = currentAccounts.findIndex(a => a.email === user.email);
+            let newAccounts = [...currentAccounts];
+            const accountData = {
+                email: user.email,
+                displayName: user.displayName || null,
+                photoURL: user.photoURL || null
+            };
+            if (existingIndex >= 0) {
+                newAccounts[existingIndex] = accountData;
+            } else {
+                newAccounts.push(accountData);
+            }
+            localStorage.setItem('nexus-known-accounts', JSON.stringify(newAccounts));
+            set({ knownAccounts: newAccounts });
+        }
 
         // Apply persisted theme immediately so dashboard loads in the correct mode
         const savedTheme = (localStorage.getItem('nexus-theme') as 'dark' | 'light') || 'dark';
@@ -138,6 +164,20 @@ export const useStore = create<AppState>((set, get) => ({
             console.error('Failed to save settings:', error);
             throw error;
         }
-    }
+    },
+    addKnownAccount: (account) => {
+        const currentAccounts = get().knownAccounts;
+        if (!currentAccounts.find(a => a.email === account.email)) {
+            const newAccounts = [...currentAccounts, account];
+            localStorage.setItem('nexus-known-accounts', JSON.stringify(newAccounts));
+            set({ knownAccounts: newAccounts });
+        }
+    },
+    removeKnownAccount: (email) => {
+        const newAccounts = get().knownAccounts.filter(a => a.email !== email);
+        localStorage.setItem('nexus-known-accounts', JSON.stringify(newAccounts));
+        set({ knownAccounts: newAccounts });
+    },
+    setTargetSwitchEmail: (email) => set({ targetSwitchEmail: email })
 }));
 
