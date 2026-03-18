@@ -4,6 +4,19 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const GROK_KEY = (process.env.GROK_API_KEY || '').trim();
+
+function detectKeyType(key) {
+    const k = String(key || '').trim();
+    if (!k) return 'missing';
+    // Google API keys (often used for Firebase client config) commonly start with "AIza".
+    if (/^AIza[0-9A-Za-z\-_]{20,}$/i.test(k)) return 'google';
+    // Groq keys commonly start with "gsk_".
+    if (/^gsk_/i.test(k)) return 'groq';
+    // xAI/Grok keys do not have a universally-stable prefix across accounts.
+    return 'unknown';
+}
+
+const GROK_KEY_TYPE = detectKeyType(GROK_KEY);
 function computeBaseUrl() {
     const explicit = (process.env.GROK_BASE_URL || '').trim();
     if (explicit) return explicit;
@@ -44,6 +57,18 @@ function requireGrokKey() {
             status: 500,
             code: 'GROK_KEY_MISSING',
         });
+    }
+
+    // Catch common misconfiguration: Firebase/Google web API key pasted into GROK_API_KEY.
+    if (GROK_KEY_TYPE === 'google') {
+        throw new GrokError(
+            'GROK_API_KEY appears to be a Google/Firebase API key (starts with "AIza"). Set this to your xAI (Grok) key or a Groq key instead.',
+            {
+                status: 500,
+                code: 'GROK_KEY_SUSPECT',
+                detail: { keyPreview: `${GROK_KEY.slice(0, 8)}...`, keyType: GROK_KEY_TYPE },
+            }
+        );
     }
 }
 

@@ -17,8 +17,17 @@
 
 import { auth } from '../lib/firebaseClient';
 
-const BASE_URL: string =
-    import.meta.env.VITE_API_URL ?? 'https://nexsus-ai.onrender.com';
+function normalizeBaseUrl(url: string): string {
+    const trimmed = url.trim();
+    if (!trimmed) return '';
+    // Remove trailing slash so `${base}${/path}` doesn't become `//path`.
+    return trimmed.endsWith('/') ? trimmed.slice(0, -1) : trimmed;
+}
+
+// If VITE_API_URL is not set, default to same-origin.
+// - Local dev: Vite proxy handles `/api/*`.
+// - Backend-served frontend: same-origin works automatically.
+const BASE_URL: string = normalizeBaseUrl(import.meta.env.VITE_API_URL ?? '');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -56,7 +65,8 @@ async function request<T>(
     path: string,
     body?: unknown
 ): Promise<T> {
-    const url = `${BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    const url = `${BASE_URL}${normalizedPath}`;
 
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',

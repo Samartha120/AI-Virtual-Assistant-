@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
 import { motion } from 'framer-motion';
+import { EmailAuthProvider, linkWithCredential, updatePassword } from 'firebase/auth';
+import { auth as firebaseAuth } from '../../lib/firebaseClient';
 import {
     User,
     Settings,
@@ -31,6 +33,11 @@ const SettingsPage: React.FC = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
 
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [passwordStatus, setPasswordStatus] = useState<string | null>(null);
+    const [isLinkingPassword, setIsLinkingPassword] = useState(false);
+
     useEffect(() => {
         console.log("SettingsPage useEffect triggered, calling fetchSettings");
         fetchSettings();
@@ -50,6 +57,62 @@ const SettingsPage: React.FC = () => {
             console.error("Failed to save", error);
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleSetPassword = async () => {
+        setPasswordStatus(null);
+
+        const currentUser = firebaseAuth.currentUser;
+        const email = currentUser?.email;
+        if (!currentUser || !email) {
+            setPasswordStatus('You must be signed in (with an account that has an email) to set a password.');
+            return;
+        }
+
+        if (!newPassword || newPassword.length < 6) {
+            setPasswordStatus('Password must be at least 6 characters.');
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            setPasswordStatus('Passwords do not match.');
+            return;
+        }
+
+        setIsLinkingPassword(true);
+        try {
+            const credential = EmailAuthProvider.credential(email, newPassword);
+            await linkWithCredential(currentUser, credential);
+            setPasswordStatus('Password login enabled. You can now sign in with Email + Password too.');
+            setNewPassword('');
+            setConfirmPassword('');
+        } catch (err: any) {
+            const code = err?.code as string | undefined;
+            if (code === 'auth/provider-already-linked') {
+                // If already linked, interpret this flow as "change password".
+                try {
+                    await updatePassword(currentUser, newPassword);
+                    setPasswordStatus('Password updated successfully.');
+                    setNewPassword('');
+                    setConfirmPassword('');
+                } catch (pwErr: any) {
+                    const pwCode = pwErr?.code as string | undefined;
+                    if (pwCode === 'auth/requires-recent-login') {
+                        setPasswordStatus('Please log out and log in again, then try updating the password.');
+                    } else {
+                        setPasswordStatus(pwErr?.message || 'Password login is already enabled, but updating the password failed.');
+                    }
+                }
+            } else if (code === 'auth/requires-recent-login') {
+                setPasswordStatus('Please log out and log in again, then try setting the password.');
+            } else if (code === 'auth/weak-password') {
+                setPasswordStatus('Password is too weak. Use at least 6 characters.');
+            } else {
+                setPasswordStatus(err?.message || 'Failed to set password. Please try again.');
+            }
+        } finally {
+            setIsLinkingPassword(false);
         }
     };
 
@@ -167,6 +230,53 @@ const SettingsPage: React.FC = () => {
                                                 defaultValue={user?.email || 'user@nexusai.enterprise'}
                                                 className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-primary/50 transition-colors"
                                             />
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-6 mt-6 border-t border-white/5">
+                                        <h2 className="text-xl font-semibold mb-2">Enable Email/Password Login</h2>
+                                        <p className="text-sm text-gray-400 mb-4">
+                                            If you sign in with Google, set a password here so you can also log in using email + password.
+                                        </p>
+
+                                        {passwordStatus && (
+                                            <div className="mb-4 p-3 bg-white/5 border border-white/10 rounded-xl text-sm text-gray-200">
+                                                {passwordStatus}
+                                            </div>
+                                        )}
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium text-gray-400">New Password</label>
+                                                <input
+                                                    type="password"
+                                                    value={newPassword}
+                                                    onChange={(e) => setNewPassword(e.target.value)}
+                                                    placeholder="••••••••"
+                                                    className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-primary/50 transition-colors"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium text-gray-400">Confirm Password</label>
+                                                <input
+                                                    type="password"
+                                                    value={confirmPassword}
+                                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                                    placeholder="••••••••"
+                                                    className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-primary/50 transition-colors"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="pt-4">
+                                            <button
+                                                type="button"
+                                                onClick={handleSetPassword}
+                                                disabled={isLinkingPassword}
+                                                className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-medium transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                                            >
+                                                {isLinkingPassword ? 'Setting password…' : 'Set Password'}
+                                            </button>
                                         </div>
                                     </div>
 

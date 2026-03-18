@@ -10,6 +10,7 @@ const ChatInterface: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const streamingRef = useRef(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -18,6 +19,12 @@ const ChatInterface: React.FC = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isStreaming]);
+
+  useEffect(() => {
+    return () => {
+      streamingRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -42,6 +49,7 @@ const ChatInterface: React.FC = () => {
   }, []);
 
   const simulateStreaming = async (fullText: string) => {
+    streamingRef.current = true;
     setIsStreaming(true);
     const aiMsg: IChatMessage = {
       role: 'model',
@@ -55,7 +63,7 @@ const ChatInterface: React.FC = () => {
     let currentText = '';
 
     for (let i = 0; i < fullText.length; i += chunkSize) {
-      if (!isStreaming) break; // Safety break
+      if (!streamingRef.current) break; // Safety break
 
       const chunk = fullText.slice(i, i + chunkSize);
       currentText += chunk;
@@ -72,11 +80,16 @@ const ChatInterface: React.FC = () => {
       await new Promise(r => setTimeout(r, 15)); // Typing speed
     }
 
+    streamingRef.current = false;
     setIsStreaming(false);
   };
 
   const handleSend = async (text: string) => {
     if (!text.trim() || isLoading) return;
+
+    // Stop any in-progress streaming before sending a new message
+    streamingRef.current = false;
+    setIsStreaming(false);
 
     // Add User Message
     const userMsg: IChatMessage = {
@@ -89,7 +102,15 @@ const ChatInterface: React.FC = () => {
 
     try {
       // Get full response from API
-      const responseText = await askNexus(text);
+      const history = messages.map((m) => ({
+        role: m.role === 'user' ? 'user' : 'assistant',
+        content: m.text,
+      }));
+      const responseText = await askNexus(text, undefined, false, history as any);
+
+      if (!responseText || !responseText.trim()) {
+        throw new Error('Empty AI response');
+      }
 
       // Start streaming simulation
       setIsLoading(false);

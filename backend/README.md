@@ -6,7 +6,7 @@ This backend is built with Node.js and Express, using Firebase Admin SDK for aut
 
 - Node.js (v18+)
 - Firebase project (Firestore + Authentication + Storage enabled)
-- xAI account / Grok API key
+- xAI account / Grok API key (or a Groq API key if you configured Groq)
 
 ## Setup
 
@@ -19,6 +19,7 @@ This backend is built with Node.js and Express, using Firebase Admin SDK for aut
 3.  **Environment Variables**:
     - Copy `.env.example` to `.env`.
     - Fill in your Firebase Admin credentials and Grok API Key.
+    - Important: `GROK_API_KEY` must be your xAI/Grok key (or Groq key). Do not paste your Firebase/Google web API key here (those often start with `AIza`).
     ```bash
     cp .env.example .env
     ```

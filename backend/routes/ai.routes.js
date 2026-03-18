@@ -13,18 +13,21 @@ const {
 // GET /api/ai-status  — health check to verify Grok key is set
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/ai-status', (req, res) => {
+    const key = (process.env.GROK_API_KEY || '').trim();
+    const keyType = /^AIza/i.test(key) ? 'google' : /^gsk_/i.test(key) ? 'groq' : key ? 'unknown' : 'missing';
     res.json({
         success: true,
-        keySet: !!process.env.GROK_API_KEY,
-        keyPreview: process.env.GROK_API_KEY
-            ? `${process.env.GROK_API_KEY.slice(0, 8)}...`
+        keySet: !!key,
+        keyType,
+        keyPreview: key
+            ? `${key.slice(0, 8)}...`
             : 'NOT SET',
-        baseURL: process.env.GROK_BASE_URL || (/^gsk_/i.test(process.env.GROK_API_KEY || '') ? 'https://api.groq.com/openai/v1' : 'https://api.x.ai/v1'),
+        baseURL: process.env.GROK_BASE_URL || (/^gsk_/i.test(key) ? 'https://api.groq.com/openai/v1' : 'https://api.x.ai/v1'),
         provider: (process.env.GROK_BASE_URL || '').includes('groq.com')
             ? 'groq'
             : (process.env.GROK_BASE_URL || '').includes('x.ai')
               ? 'xai'
-              : /^gsk_/i.test(process.env.GROK_API_KEY || '')
+              : /^gsk_/i.test(key)
                 ? 'groq'
                 : 'xai',
     });

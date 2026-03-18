@@ -2,14 +2,32 @@
 import React, { useState, useEffect } from 'react';
 import { KnowledgeItem } from '../../types';
 import { storage } from '../../services/storageService';
+import {
+  createKnowledgeItem,
+  deleteKnowledgeItem,
+  fetchKnowledgeItems,
+} from '../../services/firestoreService';
 
 const KnowledgeBase: React.FC = () => {
   const [items, setItems] = useState<KnowledgeItem[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [newItem, setNewItem] = useState({ title: '', content: '', type: 'research' as const });
+  const [useFirestore, setUseFirestore] = useState(true);
 
   useEffect(() => {
-    setItems(storage.getKnowledge());
+    const load = async () => {
+      // Prefer Firestore; fall back to localStorage when not signed in.
+      try {
+        const data = await fetchKnowledgeItems();
+        setItems(data);
+        setUseFirestore(true);
+      } catch (err) {
+        console.warn('[KnowledgeBase] falling back to localStorage:', err);
+        setItems(storage.getKnowledge());
+        setUseFirestore(false);
+      }
+    };
+    load();
   }, []);
 
   const saveToStorage = (updatedItems: KnowledgeItem[]) => {
@@ -17,19 +35,63 @@ const KnowledgeBase: React.FC = () => {
     storage.saveKnowledge(updatedItems);
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!newItem.title || !newItem.content) return;
-    const item: KnowledgeItem = {
-      id: Date.now().toString(),
-      ...newItem,
-      dateAdded: new Date().toLocaleDateString()
-    };
-    saveToStorage([item, ...items]);
-    setNewItem({ title: '', content: '', type: 'research' });
-    setIsAdding(false);
+
+    // Firestore document limit is 1MB; warn a bit before that.
+    const approxBytes = new Blob([newItem.content]).size;
+    if (approxBytes > 900_000) {
+      alert('This entry is too large to save as a single document. Please paste a shorter summary, or split it into multiple entries.');
+      return;
+    }
+
+    if (useFirestore) {
+      try {
+        const created = await createKnowledgeItem({
+          title: newItem.title,
+          content: newItem.content,
+          type: newItem.type,
+        });
+        setItems((prev) => [created, ...prev]);
+        setNewItem({ title: '', content: '', type: 'research' });
+        setIsAdding(false);
+        return;
+      } catch (err) {
+        console.error('[KnowledgeBase] failed to save to Firestore:', err);
+        alert('Failed to save to your account. Falling back to local storage.');
+        setUseFirestore(false);
+      }
+    }
+
+    // Local fallback
+    try {
+      const item: KnowledgeItem = {
+        id: Date.now().toString(),
+        ...newItem,
+        dateAdded: new Date().toLocaleDateString(),
+      };
+      saveToStorage([item, ...items]);
+      setNewItem({ title: '', content: '', type: 'research' });
+      setIsAdding(false);
+    } catch (err) {
+      console.error('[KnowledgeBase] failed to save to localStorage:', err);
+      alert('Failed to save (storage limit). Try saving a shorter entry.');
+    }
   };
 
-  const deleteItem = (id: string) => {
+  const deleteItem = async (id: string) => {
+    if (useFirestore) {
+      try {
+        await deleteKnowledgeItem(id);
+        setItems((prev) => prev.filter((i) => i.id !== id));
+        return;
+      } catch (err) {
+        console.error('[KnowledgeBase] failed to delete from Firestore:', err);
+        alert('Failed to delete from your account.');
+        return;
+      }
+    }
+
     saveToStorage(items.filter(i => i.id !== id));
   };
 
@@ -48,6 +110,12 @@ const KnowledgeBase: React.FC = () => {
             Add to Dataset
           </button>
         </header>
+
+        {!useFirestore && (
+          <div className="px-4 py-3 rounded-xl border border-white/10 bg-white/5 text-xs text-gray-300">
+            You’re not signed in (or Firestore is unavailable), so entries are saved only in this browser.
+          </div>
+        )}
 
         {isAdding && (
           <div className="glass neon-border rounded-3xl p-8 space-y-4 animate-fade-in">

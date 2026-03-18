@@ -19,11 +19,12 @@ import { api } from './apiClient';
 export const askNexus = async (
   prompt: string,
   _context?: string,
-  _useSearch: boolean = false
+  _useSearch: boolean = false,
+  history?: Array<{ role: 'user' | 'assistant'; content: string }>
 ): Promise<string> => {
   const response = await api.post<{ success: boolean; reply?: string; data?: { reply: string } }>(
     '/api/chat',
-    { message: prompt }
+    { message: prompt, history: history ?? [] }
   );
   return response.reply || response.data?.reply || '';
 };
@@ -37,7 +38,8 @@ export async function* askNexusStream(
   history?: Array<{ role: 'user' | 'assistant'; content: string }>
 ): AsyncGenerator<string> {
   // Use fetch directly for streaming; apiClient buffers JSON.
-  const baseUrl = (import.meta.env.VITE_API_URL ?? 'https://nexsus-ai.onrender.com').trim();
+  const rawBase = (import.meta.env.VITE_API_URL ?? '').trim();
+  const baseUrl = rawBase.endsWith('/') ? rawBase.slice(0, -1) : rawBase;
   const url = `${baseUrl}/api/chat/stream`;
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };

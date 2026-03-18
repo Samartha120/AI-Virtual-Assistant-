@@ -30,8 +30,14 @@ This workspace has been migrated to **Grok (xAI)** for all AI functionality.
 
 ### Frontend env (optional)
 
-- For local dev, create `.env.local` at repo root (gitignored) and set:
-  - `VITE_API_URL=http://localhost:5000`
+- Default behavior:
+  - If you do nothing, the frontend uses the production API URL from `.env`.
+- Local backend (only if you are running `backend/` locally):
+  - In `.env.local`, set:
+    - `VITE_API_URL=http://localhost:5000`
+- Render/deployed backend:
+  - Do NOT set `VITE_API_URL` to `http://localhost:5000` (that will break the app unless the backend is running locally).
+  - Either remove/comment the `VITE_API_URL` line in `.env.local`, or set it to your deployed backend base URL.
 
 ## AI Smoke Tests
 

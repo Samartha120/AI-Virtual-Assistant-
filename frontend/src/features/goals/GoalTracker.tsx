@@ -1,10 +1,17 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Target, Plus, Trash2, Sparkles, ChevronDown, ChevronUp,
     Loader2, CheckCircle2, Clock, Briefcase, User, Heart, BookOpen
 } from 'lucide-react';
 import { askNexus } from '../../services/grokService';
+import { storage } from '../../services/storageService';
+import {
+    createGoal as createGoalRecord,
+    deleteGoal as deleteGoalRecord,
+    fetchGoals,
+    updateGoal as updateGoalRecord,
+} from '../../services/firestoreService';
 
 // ─────────────────────── types ────────────────────────────────────────────────
 type Category = 'work' | 'personal' | 'health' | 'learning';
@@ -13,6 +20,14 @@ interface KeyResult {
     id: string;
     title: string;
     progress: number; // 0-100
+    tasks: KRTask[];
+}
+
+interface KRTask {
+    id: string;
+    title: string;
+    done: boolean;
+    taskId?: string; // optional link to Task Board task
 }
 
 interface Goal {
@@ -31,6 +46,13 @@ interface Goal {
 // ─────────────────────── helpers ──────────────────────────────────────────────
 const uid = () => Math.random().toString(36).slice(2, 9);
 
+const makeDefaultTask = (krTitle: string, done = false): KRTask => ({
+    id: uid(),
+    title: `Finish: ${krTitle}`,
+    done,
+    taskId: undefined,
+});
+
 const daysLeft = (deadline: string) => {
     if (!deadline) return null;
     const diff = Math.ceil((new Date(deadline).getTime() - Date.now()) / 86_400_000);
@@ -39,6 +61,12 @@ const daysLeft = (deadline: string) => {
 
 const avgProgress = (krs: KeyResult[]) =>
     krs.length === 0 ? 0 : Math.round(krs.reduce((s, k) => s + k.progress, 0) / krs.length);
+
+const krProgressFromTasks = (tasks: KRTask[]) => {
+    if (!tasks || tasks.length === 0) return 0;
+    const done = tasks.filter(t => t.done).length;
+    return Math.round((done / tasks.length) * 100);
+};
 
 const CATEGORY_META: Record<Category, { label: string; icon: React.ReactNode; color: string; bg: string }> = {
     work: { label: 'Work', icon: <Briefcase size={13} />, color: '#60a5fa', bg: 'rgba(96,165,250,0.12)' },
@@ -67,6 +95,10 @@ const GoalTracker: React.FC = () => {
     const [goals, setGoals] = useState<Goal[]>([]);
     const [filter, setFilter] = useState<Category | 'all'>('all');
     const [showForm, setShowForm] = useState(false);
+    const [loadedOnce, setLoadedOnce] = useState(false);
+    const saveTimeoutsRef = useRef<Record<string, ReturnType<typeof setTimeout> | null>>({});
+    const [taskDrafts, setTaskDrafts] = useState<Record<string, string>>({});
+    const [openMenuGoalId, setOpenMenuGoalId] = useState<string | null>(null);
 
     // form state
     const [formTitle, setFormTitle] = useState('');
@@ -75,31 +107,240 @@ const GoalTracker: React.FC = () => {
     const [formDeadline, setFormDeadline] = useState('');
     const [formKRs, setFormKRs] = useState<string[]>(['']);
 
-    const addGoal = () => {
+    useEffect(() => {
+        const load = async () => {
+            try {
+                const records = await fetchGoals();
+                const hydrated: Goal[] = records.map((r) => ({
+                    id: r.id,
+                    title: r.title,
+                    description: r.description,
+                    category: r.category,
+                    deadline: r.deadline,
+                    keyResults: r.keyResults.length
+                        ? (r.keyResults as any).map((k: any) => {
+                            const tasks: KRTask[] = Array.isArray(k.tasks)
+                                ? k.tasks.map((t: any) => ({
+                                    id: String(t.id),
+                                    title: String(t.title),
+                                    done: Boolean(t.done),
+                                    taskId: t.taskId ? String(t.taskId) : undefined,
+                                }))
+                                : [];
+                            const normalizedTasks = tasks.length
+                                ? tasks
+                                : [makeDefaultTask(String(k.title ?? 'Key Result'), Number(k.progress ?? 0) >= 100)];
+                            const computed = krProgressFromTasks(normalizedTasks);
+                            return {
+                                id: k.id,
+                                title: k.title,
+                                tasks: normalizedTasks,
+                                progress: computed,
+                            } satisfies KeyResult;
+                        })
+                        : [{ id: uid(), title: 'Complete the objective', tasks: [makeDefaultTask('Complete the objective', false)], progress: 0 }],
+                    aiCoach: null,
+                    loadingCoach: false,
+                    expanded: false,
+                    archived: Boolean(r.archived),
+                }));
+                setGoals(hydrated);
+            } catch (err) {
+                // Not authenticated or Firestore not available — fall back to in-memory goals
+                console.warn('[GoalTracker] failed to load goals:', err);
+            } finally {
+                setLoadedOnce(true);
+            }
+        };
+        load();
+    }, []);
+
+    useEffect(() => {
+        return () => {
+            Object.values(saveTimeoutsRef.current).forEach((t) => {
+                if (t) clearTimeout(t);
+            });
+        };
+    }, []);
+
+    const addGoal = async () => {
         if (!formTitle.trim()) return;
-        const krs: KeyResult[] = formKRs.filter(k => k.trim()).map(k => ({ id: uid(), title: k.trim(), progress: 0 }));
-        setGoals(prev => [{
+        const krs: KeyResult[] = formKRs
+            .filter(k => k.trim())
+            .map(k => {
+                const title = k.trim();
+                const tasks = [makeDefaultTask(title, false)];
+                return { id: uid(), title, tasks, progress: krProgressFromTasks(tasks) };
+            });
+        const newGoal: Goal = {
             id: uid(), title: formTitle.trim(), description: formDesc.trim(),
             category: formCat, deadline: formDeadline,
-            keyResults: krs.length ? krs : [{ id: uid(), title: 'Complete the objective', progress: 0 }],
+            keyResults: krs.length ? krs : (() => {
+                const title = 'Complete the objective';
+                const tasks = [makeDefaultTask(title, false)];
+                return [{ id: uid(), title, tasks, progress: krProgressFromTasks(tasks) }];
+            })(),
             aiCoach: null, loadingCoach: false, expanded: true, archived: false,
-        }, ...prev]);
+        };
+        setGoals(prev => [newGoal, ...prev]);
         setFormTitle(''); setFormDesc(''); setFormCat('work'); setFormDeadline(''); setFormKRs(['']); setShowForm(false);
+
+        try {
+            await createGoalRecord({
+                id: newGoal.id,
+                title: newGoal.title,
+                description: newGoal.description,
+                category: newGoal.category,
+                deadline: newGoal.deadline,
+                keyResults: newGoal.keyResults as any,
+                archived: newGoal.archived,
+            });
+        } catch (err) {
+            console.warn('[GoalTracker] failed to persist new goal:', err);
+        }
     };
 
-    const updateKR = (goalId: string, krId: string, progress: number) => {
-        setGoals(prev => prev.map(g => g.id !== goalId ? g : {
-            ...g, keyResults: g.keyResults.map(k => k.id === krId ? { ...k, progress } : k)
+    const persistKeyResults = (goalId: string, nextKeyResults: KeyResult[]) => {
+        const existing = saveTimeoutsRef.current[goalId];
+        if (existing) clearTimeout(existing);
+        saveTimeoutsRef.current[goalId] = setTimeout(() => {
+            updateGoalRecord(goalId, { keyResults: nextKeyResults as any })
+                .catch((err) => console.warn('[GoalTracker] failed to persist KR update:', err));
+        }, 350);
+    };
+
+    const upsertTaskBoardTasks = (goalId: string) => {
+        // Creates Task Board tasks for all KR tasks and links them by taskId.
+        const existing = storage.getTasks();
+        const existingById = new Map(existing.map(t => [t.id, t] as const));
+
+        let nextKeyResults: KeyResult[] | null = null;
+        let updatedTasks = [...existing];
+
+        setGoals(prev => prev.map(g => {
+            if (g.id !== goalId) return g;
+
+            const updatedKrs = g.keyResults.map(kr => {
+                const updatedKrTasks = (kr.tasks ?? []).map((t) => {
+                    if (t.taskId && existingById.has(t.taskId)) return t;
+
+                    const taskId = t.taskId ?? uid();
+                    if (!existingById.has(taskId)) {
+                        const created = {
+                            id: taskId,
+                            title: t.title,
+                            status: t.done ? 'done' : 'todo',
+                            priority: 'medium',
+                            order: Date.now(),
+                        } as any;
+                        updatedTasks.push(created);
+                        existingById.set(taskId, created);
+                    }
+                    return { ...t, taskId };
+                });
+
+                return {
+                    ...kr,
+                    tasks: updatedKrTasks,
+                    progress: krProgressFromTasks(updatedKrTasks),
+                };
+            });
+
+            nextKeyResults = updatedKrs;
+            return { ...g, keyResults: updatedKrs };
         }));
+
+        try {
+            storage.saveTasks(updatedTasks);
+        } catch (err) {
+            console.warn('[GoalTracker] failed to save Task Board tasks:', err);
+        }
+
+        if (nextKeyResults) persistKeyResults(goalId, nextKeyResults);
     };
 
-    const deleteGoal = (id: string) => setGoals(prev => prev.filter(g => g.id !== id));
+    const addKrTask = (goalId: string, krId: string, title: string) => {
+        const trimmed = title.trim();
+        if (!trimmed) return;
+
+        let nextKeyResults: KeyResult[] | null = null;
+
+        setGoals(prev => prev.map(g => {
+            if (g.id !== goalId) return g;
+            const updated = g.keyResults.map(kr => {
+                if (kr.id !== krId) return kr;
+                const tasks = [...(kr.tasks ?? []), { id: uid(), title: trimmed, done: false }];
+                return { ...kr, tasks, progress: krProgressFromTasks(tasks) };
+            });
+            nextKeyResults = updated;
+            return { ...g, keyResults: updated };
+        }));
+
+        if (nextKeyResults) persistKeyResults(goalId, nextKeyResults);
+    };
+
+    const setDraft = (goalId: string, krId: string, value: string) => {
+        const key = `${goalId}:${krId}`;
+        setTaskDrafts(prev => ({ ...prev, [key]: value }));
+    };
+
+    const submitDraft = (goalId: string, krId: string) => {
+        const key = `${goalId}:${krId}`;
+        const value = (taskDrafts[key] ?? '').trim();
+        if (!value) return;
+        addKrTask(goalId, krId, value);
+        setTaskDrafts(prev => ({ ...prev, [key]: '' }));
+    };
+
+    const toggleKrTask = (goalId: string, krId: string, taskId: string) => {
+        let nextKeyResults: KeyResult[] | null = null;
+        let linkedTaskUpdate: { taskId: string; done: boolean } | null = null;
+
+        setGoals(prev => prev.map(g => {
+            if (g.id !== goalId) return g;
+            const updated = g.keyResults.map(kr => {
+                if (kr.id !== krId) return kr;
+                const tasks = (kr.tasks ?? []).map(t => {
+                    if (t.id !== taskId) return t;
+                    const done = !t.done;
+                    if (t.taskId) linkedTaskUpdate = { taskId: t.taskId, done };
+                    return { ...t, done };
+                });
+                return { ...kr, tasks, progress: krProgressFromTasks(tasks) };
+            });
+            nextKeyResults = updated;
+            return { ...g, keyResults: updated };
+        }));
+
+        if (linkedTaskUpdate) {
+            try {
+                const tasks = storage.getTasks();
+                const updated = tasks.map((t: any) =>
+                    t.id === linkedTaskUpdate!.taskId
+                        ? { ...t, status: linkedTaskUpdate!.done ? 'done' : 'todo' }
+                        : t
+                );
+                storage.saveTasks(updated);
+            } catch (err) {
+                console.warn('[GoalTracker] failed to update Task Board task status:', err);
+            }
+        }
+
+        if (nextKeyResults) persistKeyResults(goalId, nextKeyResults);
+    };
+
+    const deleteGoal = (id: string) => {
+        setGoals(prev => prev.filter(g => g.id !== id));
+        deleteGoalRecord(id).catch((err) => console.warn('[GoalTracker] failed to delete goal:', err));
+    };
 
     const toggleExpand = (id: string) =>
         setGoals(prev => prev.map(g => g.id === id ? { ...g, expanded: !g.expanded } : g));
 
-    const archiveGoal = (id: string) =>
+    const archiveGoal = (id: string) => {
         setGoals(prev => prev.map(g => g.id === id ? { ...g, archived: true, expanded: false } : g));
+        updateGoalRecord(id, { archived: true }).catch((err) => console.warn('[GoalTracker] failed to archive goal:', err));
+    };
 
     const getAiCoach = async (goal: Goal) => {
         setGoals(prev => prev.map(g => g.id !== goal.id ? g : { ...g, loadingCoach: true, aiCoach: null }));
@@ -247,7 +488,7 @@ Keep your response under 150 words. Be direct and motivating.`;
 
             {/* Goals List */}
             <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar space-y-4">
-                {filtered.length === 0 && (
+                {loadedOnce && filtered.length === 0 && (
                     <div className="flex flex-col items-center justify-center text-center py-20 opacity-50 select-none">
                         <Target size={48} className="text-violet-400 mb-4" />
                         <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No goals yet.<br />Click "New Goal" to set your first objective.</p>
@@ -295,24 +536,67 @@ Keep your response under 150 words. Be direct and motivating.`;
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2 shrink-0">
+                                    <div className="flex items-center gap-2 shrink-0 relative">
                                         <button onClick={() => getAiCoach(goal)} disabled={goal.loadingCoach}
                                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all hover:scale-105 disabled:opacity-50"
                                             style={{ background: 'rgba(139,92,246,0.1)', color: '#a78bfa', borderColor: 'rgba(139,92,246,0.25)' }}>
                                             {goal.loadingCoach ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
                                             AI Coach
                                         </button>
-                                        {isComplete && (
-                                            <button onClick={() => archiveGoal(goal.id)}
-                                                className="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors"
-                                                style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', borderColor: 'rgba(16,185,129,0.25)' }}>
-                                                Archive ✓
-                                            </button>
-                                        )}
-                                        <button onClick={() => deleteGoal(goal.id)}
-                                            className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors">
-                                            <Trash2 size={14} />
+                                        <button
+                                            onClick={() => setOpenMenuGoalId(v => (v === goal.id ? null : goal.id))}
+                                            className="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors"
+                                            style={{ background: 'var(--card-bg)', color: 'var(--text-muted)', borderColor: 'var(--border)' }}>
+                                            Actions ▾
                                         </button>
+                                        <AnimatePresence>
+                                            {openMenuGoalId === goal.id && (
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: -6 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0, y: -6 }}
+                                                    className="absolute right-0 top-10 w-44 rounded-xl border overflow-hidden z-50"
+                                                    style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                                                    <button
+                                                        onClick={() => {
+                                                            toggleExpand(goal.id);
+                                                            setOpenMenuGoalId(null);
+                                                        }}
+                                                        className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 transition-colors"
+                                                        style={{ color: 'var(--text)' }}>
+                                                        {goal.expanded ? 'Collapse' : 'Expand'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            if (isComplete) archiveGoal(goal.id);
+                                                            setOpenMenuGoalId(null);
+                                                        }}
+                                                        disabled={!isComplete}
+                                                        className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 transition-colors disabled:opacity-50"
+                                                        style={{ color: isComplete ? '#10b981' : 'var(--text-muted)' }}>
+                                                        Archive
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            upsertTaskBoardTasks(goal.id);
+                                                            setOpenMenuGoalId(null);
+                                                        }}
+                                                        className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 transition-colors"
+                                                        style={{ color: 'var(--text)' }}>
+                                                        Create Task Board tasks
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            deleteGoal(goal.id);
+                                                            setOpenMenuGoalId(null);
+                                                        }}
+                                                        className="w-full text-left px-3 py-2 text-sm hover:bg-red-500/10 transition-colors"
+                                                        style={{ color: '#f87171' }}>
+                                                        Delete
+                                                    </button>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                         <button onClick={() => toggleExpand(goal.id)}
                                             className="p-1.5 rounded-lg transition-colors"
                                             style={{ color: 'var(--text-muted)', background: 'var(--card-bg)' }}>
@@ -331,15 +615,53 @@ Keep your response under 150 words. Be direct and motivating.`;
                                                 <div className="space-y-3">
                                                     <h4 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Key Results</h4>
                                                     {goal.keyResults.map(kr => (
-                                                        <div key={kr.id} className="space-y-1.5">
+                                                        <div key={kr.id} className="space-y-2">
                                                             <div className="flex justify-between items-center">
                                                                 <span className="text-sm" style={{ color: 'var(--text)' }}>{kr.title}</span>
                                                                 <span className="text-xs font-bold" style={{ color: kr.progress === 100 ? '#10b981' : meta.color }}>{kr.progress}%</span>
                                                             </div>
-                                                            <input type="range" min={0} max={100} value={kr.progress}
-                                                                onChange={e => updateKR(goal.id, kr.id, Number(e.target.value))}
-                                                                className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
-                                                                style={{ accentColor: kr.progress === 100 ? '#10b981' : meta.color }} />
+
+                                                            {/* Progress bar (computed) */}
+                                                            <div className="h-2 rounded-full border overflow-hidden" style={{ borderColor: 'var(--border)', background: 'var(--card-bg)' }}>
+                                                                <div className="h-full" style={{ width: `${kr.progress}%`, background: kr.progress === 100 ? '#10b981' : meta.color, transition: 'width 0.25s ease' }} />
+                                                            </div>
+
+                                                            {/* Tasks checklist */}
+                                                            <div className="space-y-1.5">
+                                                                {(kr.tasks ?? []).map((t) => (
+                                                                    <label key={t.id} className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={t.done}
+                                                                            onChange={() => toggleKrTask(goal.id, kr.id, t.id)}
+                                                                            className="h-4 w-4"
+                                                                        />
+                                                                        <span style={{ color: 'var(--text)', textDecoration: t.done ? 'line-through' : 'none', opacity: t.done ? 0.7 : 1 }}>
+                                                                            {t.title}
+                                                                        </span>
+                                                                    </label>
+                                                                ))}
+                                                            </div>
+
+                                                            {/* Add task */}
+                                                            <div className="flex gap-2">
+                                                                <input
+                                                                    value={taskDrafts[`${goal.id}:${kr.id}`] ?? ''}
+                                                                    onChange={(e) => setDraft(goal.id, kr.id, e.target.value)}
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === 'Enter') submitDraft(goal.id, kr.id);
+                                                                    }}
+                                                                    placeholder="Add a task…"
+                                                                    className="flex-1 px-3 py-2 rounded-lg text-sm focus:outline-none"
+                                                                    style={{ background: 'var(--input-bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                                                                />
+                                                                <button
+                                                                    onClick={() => submitDraft(goal.id, kr.id)}
+                                                                    className="px-3 py-2 rounded-lg text-sm font-semibold border transition-colors"
+                                                                    style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}>
+                                                                    Add
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     ))}
                                                 </div>

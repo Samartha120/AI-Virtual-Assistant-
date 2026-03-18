@@ -4,7 +4,10 @@ import { Mail, Lock, User as UserIcon, Loader2, ArrowRight, Eye, EyeOff } from '
 import {
   createUserWithEmailAndPassword,
   fetchSignInMethodsForEmail,
+  GoogleAuthProvider,
+  linkWithCredential,
   signInWithEmailAndPassword,
+  signInWithPopup,
   sendPasswordResetEmail,
   sendEmailVerification,
   updateProfile,
@@ -32,16 +35,55 @@ const AuthPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
-  const normalizeEmail = (value: string) => value.trim();
+  const normalizeEmail = (value: string) => value.trim().toLowerCase();
+
+  const PENDING_GOOGLE_LINK_KEY = 'nexus:pendingGoogleLink';
+
+  const savePendingGoogleLink = (payload: { email: string; idToken: string; accessToken?: string | null }) => {
+    try {
+      sessionStorage.setItem(PENDING_GOOGLE_LINK_KEY, JSON.stringify(payload));
+    } catch {
+      // ignore
+    }
+  };
+
+  const loadPendingGoogleLink = (): { email: string; idToken: string; accessToken?: string | null } | null => {
+    try {
+      const raw = sessionStorage.getItem(PENDING_GOOGLE_LINK_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as any;
+      if (!parsed || typeof parsed !== 'object') return null;
+      if (typeof parsed.email !== 'string' || typeof parsed.idToken !== 'string') return null;
+      return {
+        email: parsed.email,
+        idToken: parsed.idToken,
+        accessToken: typeof parsed.accessToken === 'string' ? parsed.accessToken : null,
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  const clearPendingGoogleLink = () => {
+    try {
+      sessionStorage.removeItem(PENDING_GOOGLE_LINK_KEY);
+    } catch {
+      // ignore
+    }
+  };
 
   const getAuthErrorMessage = (err: any) => {
     const code = err?.code as string | undefined;
+    const projectId = auth?.app?.options?.projectId ? String(auth.app.options.projectId) : '';
+    const projectHint = projectId ? ` (project: ${projectId})` : '';
 
     switch (code) {
       case 'auth/invalid-credential':
+        return `Invalid email or password. If this email was created with Google sign-in, use “Continue with Google”, then enable a password in Settings so both methods work.${projectHint}`;
       case 'auth/wrong-password':
+        return 'Invalid email or password. If you don\'t have an account yet, click “Sign up”.';
       case 'auth/user-not-found':
-        return 'Invalid email or password.';
+        return 'No account found for this email. Click “Sign up” to create one.';
       case 'auth/invalid-email':
         return 'Please enter a valid email address.';
       case 'auth/too-many-requests':
@@ -53,7 +95,9 @@ const AuthPage: React.FC = () => {
       case 'auth/weak-password':
         return 'Password is too weak. Use at least 6 characters.';
       case 'auth/operation-not-allowed':
-        return 'Email/password sign-in is not enabled for this Firebase project.';
+        return `Email/password sign-in is not enabled for this Firebase project.${projectHint}`;
+      case 'auth/account-exists-with-different-credential':
+        return `This email is already registered with a different sign-in method. Sign in with your existing method first, then you can use both Email/Password and Google on future logins.${projectHint}`;
       default:
         return err?.message || 'An error occurred. Please try again.';
     }
@@ -72,6 +116,80 @@ const AuthPage: React.FC = () => {
       await sendPasswordResetEmail(auth, normalizedEmail);
       setError('Password reset email sent. Please check your inbox (and spam).');
     } catch (err: any) {
+      const code = err?.code as string | undefined;
+      if (code === 'auth/user-not-found') {
+        setError('No account found for this email. Click “Sign up” to create one.');
+      } else {
+        setError(getAuthErrorMessage(err));
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const provider = new GoogleAuthProvider();
+      const cred = await signInWithPopup(auth, provider);
+      const token = await cred.user.getIdToken();
+      login(
+        {
+          id: cred.user.uid,
+          email: cred.user.email,
+          displayName: cred.user.displayName,
+          emailVerified: cred.user.emailVerified,
+          phoneNumber: cred.user.phoneNumber,
+        },
+        token
+      );
+    } catch (err: any) {
+      const code = err?.code as string | undefined;
+
+      // User intentionally closed the popup: don't show a scary error.
+      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        return;
+      }
+
+      // If the email already exists with password login, store the Google credential so we can link it
+      // right after the user signs in with email/password.
+      if (code === 'auth/account-exists-with-different-credential') {
+        const emailFromError = (err?.customData?.email as string | undefined) ?? '';
+        const normalized = normalizeEmail(emailFromError);
+        const pending = GoogleAuthProvider.credentialFromError(err) as any;
+        const idToken = pending?.idToken as string | undefined;
+        const accessToken = pending?.accessToken as string | undefined;
+
+        // Best-effort: ask Firebase what sign-in methods exist for this email.
+        // Note: This call may be blocked or return empty if Email Enumeration Protection is enabled.
+        let methods: string[] = [];
+        if (normalized) {
+          try {
+            methods = await fetchSignInMethodsForEmail(auth, normalized);
+          } catch {
+            methods = [];
+          }
+        }
+
+        if (normalized && idToken) {
+          savePendingGoogleLink({ email: normalized, idToken, accessToken });
+          setEmail(normalized);
+
+          // If methods indicate password, guide the user accordingly.
+          if (methods.includes('password')) {
+            setError('This email already has a password login. Sign in with your email + password to link Google for next time.');
+          } else if (methods.length) {
+            setError('This email already exists with a different sign-in method. Please sign in using your original method first, then try Google again to link accounts.');
+          } else {
+            // Fallback message when methods are unavailable.
+            setError('This email already exists. Please sign in with your existing method (email + password) to link Google for next time.');
+          }
+          return;
+        }
+      }
+
       setError(getAuthErrorMessage(err));
     } finally {
       setIsLoading(false);
@@ -85,8 +203,24 @@ const AuthPage: React.FC = () => {
 
     try {
       if (isLogin) {
-        const cred = await signInWithEmailAndPassword(auth, normalizeEmail(email), password);
-        const token = await cred.user.getIdToken();
+        const normalizedEmail = normalizeEmail(email);
+        const cred = await signInWithEmailAndPassword(auth, normalizedEmail, password);
+
+        // If the user previously attempted Google sign-in for this same email, link providers now
+        // so both login methods work going forward.
+        const pending = loadPendingGoogleLink();
+        if (pending && normalizeEmail(pending.email) === normalizedEmail) {
+          try {
+            const googleCredential = GoogleAuthProvider.credential(pending.idToken, pending.accessToken ?? undefined);
+            await linkWithCredential(cred.user, googleCredential);
+          } catch {
+            // Linking is best-effort; login should still succeed.
+          } finally {
+            clearPendingGoogleLink();
+          }
+        }
+
+        const token = await cred.user.getIdToken(true);
         login(
           {
             id: cred.user.uid,
@@ -125,14 +259,44 @@ const AuthPage: React.FC = () => {
         token
       );
     } catch (err: any) {
-      const normalizedEmail = normalizeEmail(email);
       const code = err?.code as string | undefined;
+
+      // If user tries email/password login but account was created with Google only,
+      // explain how to enable password so both methods work.
+      if (
+        isLogin &&
+        (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found')
+      ) {
+        const normalizedEmail = normalizeEmail(email);
+        if (normalizedEmail) {
+          try {
+            const methods = await fetchSignInMethodsForEmail(auth, normalizedEmail);
+            const hasGoogle = methods.includes('google.com');
+            const hasPassword = methods.includes('password');
+            if (hasGoogle && !hasPassword) {
+              setError(
+                'This email is registered with Google sign-in. Click “Continue with Google” to sign in, then go to Settings → Enable Email/Password Login to set a password. After that, both Google and normal sign-in will work.'
+              );
+              return;
+            }
+          } catch {
+            // If Email Enumeration Protection blocks this, fall back to generic message.
+          }
+        }
+      }
 
       // If the user doesn't exist in Firebase Auth, guide them to Sign up (no Firebase-console manual creation).
       // We deliberately do NOT auto-create on failed login (security/account-takeover risk).
       // Note: fetchSignInMethodsForEmail is removed here as it frequently breaks with Firebase Email Enumeration Protection.
 
-      setError(getAuthErrorMessage(err));
+      // If a user tries to create an email/password account but the email already exists (often via Google)
+      // guide them into the correct login flow.
+      if (!isLogin && code === 'auth/email-already-in-use') {
+        setIsLogin(true);
+        setError('An account already exists for this email. Please sign in instead (use Google if that’s how you signed up). After signing in with Google, you can enable a password in Settings so both methods work.');
+      } else {
+        setError(getAuthErrorMessage(err));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -264,6 +428,17 @@ const AuthPage: React.FC = () => {
               )}
             </span>
           </button>
+
+          {isLogin && (
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={isLoading}
+              className="w-full flex items-center justify-center py-3 bg-black/20 hover:bg-black/30 text-white rounded-xl font-medium transition-all border border-white/10 disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              Continue with Google
+            </button>
+          )}
         </form>
 
         <div className="mt-6 text-center">

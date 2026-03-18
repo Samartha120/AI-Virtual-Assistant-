@@ -18,26 +18,49 @@ app.set('trust proxy', 1);
 app.use(helmet()); // Adds secure HTTP headers
 
 // CORS — allow frontend origins (dev + production)
+function parseOriginList(value) {
+    if (!value) return [];
+    return String(value)
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+}
+
+const envOrigins = [
+    ...parseOriginList(process.env.FRONTEND_URL),
+    ...parseOriginList(process.env.FRONTEND_URLS),
+];
+
 const allowedOrigins = [
-    process.env.FRONTEND_URL,           // Custom domain if set
-    'https://nexsus-ai.onrender.com',   // Render production URL
+    ...envOrigins, // Custom domains if set (supports comma-separated)
+    'https://nexsus-ai.onrender.com', // Render production URL
     'http://localhost:3000',
+    'http://localhost:3001',
     'http://localhost:5173',
 ].filter(Boolean);
 
-app.use(cors({
+const isDev = (process.env.NODE_ENV || 'development') === 'development';
+const corsOptions = {
     origin: (origin, callback) => {
-        // Allow requests with no origin (e.g. mobile apps, Postman, curl)
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error(`CORS: origin '${origin}' not allowed`));
+        // Allow requests with no origin (e.g. Postman/curl)
+        if (!origin) return callback(null, true);
+
+        // In dev, allow any localhost port to avoid constant port mismatch issues.
+        if (isDev && (/^http:\/\/localhost:\d+$/i.test(origin) || /^http:\/\/127\.0\.0\.1:\d+$/i.test(origin))) {
+            return callback(null, true);
         }
+
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+        return callback(new Error(`CORS: origin '${origin}' not allowed`));
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
+app.use(cors(corsOptions));
+// Ensure preflight requests succeed (fixes "blocked by CORS policy" in browser)
+app.options(/.*/, cors(corsOptions));
 
 // ─── Body Parsers ────────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
