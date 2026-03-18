@@ -42,6 +42,39 @@ async function httpJson(path, options = {}) {
   return json;
 }
 
+async function httpJsonWithStatus(path, options = {}) {
+  const url = `${BASE_URL}${path}`;
+  const resp = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
+  });
+
+  const text = await resp.text();
+  let json;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+
+  return { status: resp.status, ok: resp.ok, json, text };
+}
+
+async function expectStatus(path, expectedStatus, options = {}) {
+  const result = await httpJsonWithStatus(path, options);
+  if (result.status !== expectedStatus) {
+    const err = new Error(`Expected HTTP ${expectedStatus} for ${path}, got ${result.status}`);
+    err.status = result.status;
+    err.bodyText = result.text;
+    err.bodyJson = result.json;
+    throw err;
+  }
+  return result.json;
+}
+
 async function streamSse(path, body) {
   const url = `${BASE_URL}${path}`;
   const resp = await fetch(url, {
@@ -108,6 +141,9 @@ function preview(s, n = 120) {
 async function main() {
   console.log(`BASE_URL=${BASE_URL}`);
 
+  // Basic health check
+  await httpJson('/', { method: 'GET' });
+
   const status = await httpJson('/api/ai-status', { method: 'GET' });
   console.log('ai-status:', status);
 
@@ -122,27 +158,19 @@ async function main() {
   }
 
   // Protected endpoints should return 401 without auth (not 500)
-  try {
-    await httpJson('/api/ai/history', { method: 'GET' });
-    console.error('Expected /api/ai/history to require auth (401) but it succeeded');
-    process.exit(1);
-  } catch (err) {
-    if (err?.status !== 401) {
-      console.error('Expected /api/ai/history to return 401 without auth');
-      throw err;
-    }
-  }
+  await expectStatus('/api/ai/history', 401, { method: 'GET' });
+  await expectStatus('/api/dashboard/stats', 401, { method: 'GET' });
+  await expectStatus('/api/tasks', 401, { method: 'GET' });
+  await expectStatus('/api/settings', 401, { method: 'GET' });
+  await expectStatus('/api/knowledge', 401, { method: 'GET' });
+  await expectStatus('/api/ai/chat', 401, { method: 'POST', body: JSON.stringify({ message: 'hi' }) });
+  await expectStatus('/api/files/upload', 401, { method: 'POST', body: JSON.stringify({}) });
 
-  try {
-    await httpJson('/api/dashboard/stats', { method: 'GET' });
-    console.error('Expected /api/dashboard/stats to require auth (401) but it succeeded');
-    process.exit(1);
-  } catch (err) {
-    if (err?.status !== 401) {
-      console.error('Expected /api/dashboard/stats to return 401 without auth');
-      throw err;
-    }
-  }
+  // Auth routes are intentionally stubbed (Firebase is used on the frontend)
+  await expectStatus('/api/auth/login', 501, { method: 'POST', body: JSON.stringify({}) });
+  await expectStatus('/api/auth/signup', 501, { method: 'POST', body: JSON.stringify({}) });
+  await expectStatus('/api/auth/verify-otp', 410, { method: 'POST', body: JSON.stringify({}) });
+  await expectStatus('/api/auth/resend-otp', 410, { method: 'POST', body: JSON.stringify({}) });
 
   const chat = await httpJson('/api/chat', {
     method: 'POST',

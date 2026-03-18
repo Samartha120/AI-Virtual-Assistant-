@@ -79,7 +79,7 @@ const generalLimiter = rateLimit({
 // Strict limiter for AI endpoints (Grok API quota protection)
 const aiLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
-    max: 15,
+    max: isDev ? 300 : 15,
     standardHeaders: true,
     legacyHeaders: false,
     message: { success: false, message: 'AI rate limit reached. Please wait before sending more messages.' }
