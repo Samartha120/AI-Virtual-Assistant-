@@ -17,6 +17,11 @@ router.get('/ai-status', (req, res) => {
     const keyType = /^AIza/i.test(key) ? 'google' : /^gsk_/i.test(key) ? 'groq' : key ? 'unknown' : 'missing';
     res.json({
         success: true,
+        build: {
+            commit: process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT || null,
+            service: process.env.RENDER_SERVICE_NAME || null,
+            instance: process.env.RENDER_INSTANCE_ID || null,
+        },
         keySet: !!key,
         keyType,
         keyPreview: key
