@@ -5,7 +5,7 @@
  * ⚠️  REFACTORED — Grok is NO LONGER called directly from the browser.
  *
  * All AI calls proxy through the secure backend:
- *   Frontend → https://nexsus-ai.onrender.com → Grok API
+ *   Frontend → /api/* (same-origin backend) → Grok API
  *
  * Exports keep the SAME signatures as before so callers (ChatInterface,
  * Brainstormer, DocumentAnalyzer, TaskBoard) need ZERO changes.

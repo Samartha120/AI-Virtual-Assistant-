@@ -5,7 +5,7 @@
  * Centralised HTTP client for all backend REST API calls.
  *
  * Base URL is driven exclusively by the VITE_API_URL environment variable:
- *   • .env          → https://nexsus-ai.onrender.com   (production default)
+ *   • Production     → (unset) same-origin
  *   • .env.local    → http://localhost:5000             (local dev override)
  *
  * Usage:
