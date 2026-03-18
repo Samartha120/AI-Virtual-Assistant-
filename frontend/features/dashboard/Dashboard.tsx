@@ -15,6 +15,7 @@ import { Button } from '../../components/ui/Button';
 import { useStore } from '../../store/useStore';
 import { AppView } from '../../types';
 import { dashboardService } from '../../src/services/dashboardService';
+import { ApiError } from '../../services/apiClient';
 
 const Dashboard: React.FC = () => {
   const { setCurrentView } = useStore();
@@ -38,6 +39,7 @@ const Dashboard: React.FC = () => {
           });
         }
       } catch (error) {
+        if (error instanceof ApiError && error.status === 401) return;
         console.error("Failed to fetch backend stats:", error);
       }
     };

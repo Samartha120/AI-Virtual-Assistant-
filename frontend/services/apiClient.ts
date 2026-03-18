@@ -16,6 +16,7 @@
  */
 
 import { auth } from '../lib/firebaseClient';
+import { signOut } from 'firebase/auth';
 
 export class ApiError extends Error {
     status: number;
@@ -143,6 +144,17 @@ async function request<T>(
             });
         } catch {
             localStorage.removeItem('firebase-id-token');
+        }
+    }
+
+    // If it STILL fails with 401 after refresh, the token is invalid for this backend.
+    // Sign out to stop noisy retries and force a clean re-auth.
+    if (response.status === 401) {
+        localStorage.removeItem('firebase-id-token');
+        try {
+            await signOut(auth);
+        } catch {
+            // ignore
         }
     }
 
