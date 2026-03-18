@@ -10,7 +10,7 @@
  * - Exports keep legacy signatures so existing modules work unchanged.
  */
 
-import { api } from './apiClient';
+import { api, API_BASE_URL } from './apiClient';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Chat (Neural Chat + Writing Studio + other helpers)
@@ -38,9 +38,8 @@ export async function* askNexusStream(
   history?: Array<{ role: 'user' | 'assistant'; content: string }>
 ): AsyncGenerator<string> {
   // Use fetch directly for streaming; apiClient buffers JSON.
-  const rawBase = (import.meta.env.VITE_API_URL ?? '').trim();
-  const baseUrl = rawBase.endsWith('/') ? rawBase.slice(0, -1) : rawBase;
-  const url = `${baseUrl}/api/chat/stream`;
+  // API_BASE_URL is already normalized (including stripping trailing "/api").
+  const url = `${API_BASE_URL}/api/chat/stream`;
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const cachedToken = localStorage.getItem('firebase-id-token');

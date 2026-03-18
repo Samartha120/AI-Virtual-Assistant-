@@ -116,6 +116,34 @@ async function main() {
     process.exit(2);
   }
 
+  if (status?.keyType === 'google') {
+    console.error('GROK_API_KEY looks like a Google/Firebase key (AIza...). Set an xAI/Grok key or a Groq key and restart/redeploy.');
+    process.exit(2);
+  }
+
+  // Protected endpoints should return 401 without auth (not 500)
+  try {
+    await httpJson('/api/ai/history', { method: 'GET' });
+    console.error('Expected /api/ai/history to require auth (401) but it succeeded');
+    process.exit(1);
+  } catch (err) {
+    if (err?.status !== 401) {
+      console.error('Expected /api/ai/history to return 401 without auth');
+      throw err;
+    }
+  }
+
+  try {
+    await httpJson('/api/dashboard/stats', { method: 'GET' });
+    console.error('Expected /api/dashboard/stats to require auth (401) but it succeeded');
+    process.exit(1);
+  } catch (err) {
+    if (err?.status !== 401) {
+      console.error('Expected /api/dashboard/stats to return 401 without auth');
+      throw err;
+    }
+  }
+
   const chat = await httpJson('/api/chat', {
     method: 'POST',
     body: JSON.stringify({

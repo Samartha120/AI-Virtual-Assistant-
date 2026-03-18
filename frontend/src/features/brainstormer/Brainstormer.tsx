@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Lightbulb, Zap, Sparkles, Copy, RefreshCw } from 'lucide-react';
 import { brainstormIdeas } from '../../services/grokService';
+import { getUserFacingAiError } from '../../services/errorUtils';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -26,7 +27,7 @@ const Brainstormer: React.FC = () => {
       setIdeas(ideasList);
     } catch (error) {
       console.error(error);
-      alert('Brainstorming failed. Please try again.');
+      alert(getUserFacingAiError(error));
     } finally {
       setIsGenerating(false);
     }

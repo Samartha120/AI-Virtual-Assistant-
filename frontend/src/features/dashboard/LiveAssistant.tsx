@@ -1,6 +1,7 @@
 
 import React, { useCallback, useRef, useState } from 'react';
 import { askNexus } from '../../services/grokService';
+import { getUserFacingAiError } from '../../services/errorUtils';
 
 const LiveAssistant: React.FC = () => {
   const [isActive, setIsActive] = useState(false);
@@ -46,7 +47,7 @@ const LiveAssistant: React.FC = () => {
           );
         } catch (err) {
           console.error('LiveAssistant Grok error:', err);
-          reply = 'I encountered a neural synchronization error. Please try again.';
+          reply = getUserFacingAiError(err);
         }
 
         pushLine(`Nexus: ${reply}`);

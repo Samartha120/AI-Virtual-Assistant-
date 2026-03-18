@@ -17,8 +17,40 @@
 
 import { auth } from '../../lib/firebaseClient';
 
-const BASE_URL: string =
-    import.meta.env.VITE_API_URL ?? 'https://nexsus-ai.onrender.com';
+export class ApiError extends Error {
+    status: number;
+    code?: string;
+    bodyText?: string;
+    bodyJson?: unknown;
+
+    constructor(
+        message: string,
+        { status, code, bodyText, bodyJson }: { status: number; code?: string; bodyText?: string; bodyJson?: unknown }
+    ) {
+        super(message);
+        this.name = 'ApiError';
+        this.status = status;
+        this.code = code;
+        this.bodyText = bodyText;
+        this.bodyJson = bodyJson;
+    }
+}
+
+function normalizeBaseUrl(url: string): string {
+    const trimmed = String(url || '').trim();
+    if (!trimmed) return '';
+    const noSlash = trimmed.endsWith('/') ? trimmed.slice(0, -1) : trimmed;
+    return noSlash.toLowerCase().endsWith('/api') ? noSlash.slice(0, -4) : noSlash;
+}
+
+// If VITE_API_URL is not set, default to same-origin (Vite proxy / production same-origin).
+const BASE_URL: string = normalizeBaseUrl(import.meta.env.VITE_API_URL ?? '');
+
+function normalizeApiPath(path: string): string {
+    const p = path.startsWith('/') ? path : `/${path}`;
+    if (p === '/api' || p.startsWith('/api/')) return p;
+    return `/api${p}`;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -39,10 +71,28 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
 
 async function handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(
-            `API Error ${response.status} ${response.statusText}: ${errorBody}`
-        );
+        const errorBodyText = await response.text().catch(() => '');
+        let errorBodyJson: any = undefined;
+        try {
+            errorBodyJson = errorBodyText ? JSON.parse(errorBodyText) : undefined;
+        } catch {
+            errorBodyJson = undefined;
+        }
+
+        const message =
+            (typeof errorBodyJson?.detail === 'string' && errorBodyJson.detail) ||
+            (typeof errorBodyJson?.error === 'string' && errorBodyJson.error) ||
+            (typeof errorBodyJson?.message === 'string' && errorBodyJson.message) ||
+            `API Error ${response.status} ${response.statusText}`;
+
+        const code = typeof errorBodyJson?.code === 'string' ? errorBodyJson.code : undefined;
+
+        throw new ApiError(message, {
+            status: response.status,
+            code,
+            bodyText: errorBodyText,
+            bodyJson: errorBodyJson,
+        });
     }
     // Return null for 204 No Content responses
     if (response.status === 204) return null as T;
@@ -56,18 +106,40 @@ async function request<T>(
     path: string,
     body?: unknown
 ): Promise<T> {
-    const url = `${BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
+    const normalizedPath = normalizeApiPath(path);
+    const url = `${BASE_URL}${normalizedPath}`;
 
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         ...(await getAuthHeaders()),
     };
 
-    const response = await fetch(url, {
+    let response = await fetch(url, {
         method,
         headers,
         body: body !== undefined ? JSON.stringify(body) : undefined,
     });
+
+    if (response.status === 401) {
+        try {
+            if (auth.currentUser) {
+                const token = await auth.currentUser.getIdToken(true);
+                localStorage.setItem('firebase-id-token', token);
+                headers.Authorization = `Bearer ${token}`;
+            } else {
+                localStorage.removeItem('firebase-id-token');
+                delete headers.Authorization;
+            }
+
+            response = await fetch(url, {
+                method,
+                headers,
+                body: body !== undefined ? JSON.stringify(body) : undefined,
+            });
+        } catch {
+            localStorage.removeItem('firebase-id-token');
+        }
+    }
 
     return handleResponse<T>(response);
 }

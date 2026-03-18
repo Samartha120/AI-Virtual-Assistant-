@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage as IChatMessage } from '../../types';
 import { askNexus, getChatHistory } from '../../services/grokService';
+import { getUserFacingAiError } from '../../services/errorUtils';
 import { ChatHeader } from '../../components/chat/ChatHeader';
 import { ChatMessage } from '../../components/chat/ChatMessage';
 import { ChatInput } from '../../components/chat/ChatInput';
@@ -120,7 +121,7 @@ const ChatInterface: React.FC = () => {
       console.error("Chat Error:", error);
       setMessages(prev => [...prev, {
         role: 'model',
-        text: "I encountered a neural synchronization error. Please try again.",
+        text: getUserFacingAiError(error),
         timestamp: Date.now()
       }]);
       setIsLoading(false);
