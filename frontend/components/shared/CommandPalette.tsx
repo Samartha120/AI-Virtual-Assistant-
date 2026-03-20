@@ -1,12 +1,13 @@
+'use client';
+
 import React, { useEffect, useState } from 'react';
 import { Command } from 'cmdk';
 import { Search, Settings, User, FileText, Zap, MessageSquare, LayoutDashboard } from 'lucide-react';
-import { useStore } from '../../store/useStore';
-import { AppView } from '../../types';
+import { useNavigate } from 'react-router-dom';
 
 export const CommandPalette = () => {
     const [open, setOpen] = useState(false);
-    const { setCurrentView } = useStore();
+    const navigate = useNavigate();
 
     useEffect(() => {
         const down = (e: KeyboardEvent) => {
@@ -47,22 +48,22 @@ export const CommandPalette = () => {
                             <CommandItem
                                 icon={<LayoutDashboard className="mr-2 h-4 w-4" />}
                                 label="Dashboard"
-                                onSelect={() => runCommand(() => setCurrentView(AppView.DASHBOARD))}
+                                onSelect={() => runCommand(() => navigate('/dashboard'))}
                             />
                             <CommandItem
                                 icon={<MessageSquare className="mr-2 h-4 w-4" />}
                                 label="Neural Chat"
-                                onSelect={() => runCommand(() => setCurrentView(AppView.CHAT))}
+                                onSelect={() => runCommand(() => navigate('/neural-chat'))}
                             />
                             <CommandItem
                                 icon={<FileText className="mr-2 h-4 w-4" />}
                                 label="Document Analyzer"
-                                onSelect={() => runCommand(() => setCurrentView(AppView.DOC_ANALYZER))}
+                                onSelect={() => runCommand(() => navigate('/doc-analyzer'))}
                             />
                             <CommandItem
                                 icon={<Zap className="mr-2 h-4 w-4" />}
                                 label="Brainstormer"
-                                onSelect={() => runCommand(() => setCurrentView(AppView.BRAINSTORMER))}
+                                onSelect={() => runCommand(() => navigate('/brainstormer'))}
                             />
                         </Command.Group>
 
@@ -70,7 +71,7 @@ export const CommandPalette = () => {
                             <CommandItem
                                 icon={<Settings className="mr-2 h-4 w-4" />}
                                 label="Settings"
-                                onSelect={() => runCommand(() => setCurrentView(AppView.SETTINGS))}
+                                onSelect={() => runCommand(() => navigate('/settings'))}
                             />
                             <CommandItem
                                 icon={<User className="mr-2 h-4 w-4" />}

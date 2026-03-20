@@ -1,3 +1,6 @@
+/* eslint-disable react/no-unescaped-entities */
+'use client';
+
 import React, { useState, useEffect, useRef } from 'react';
 import {
   DndContext,
@@ -15,6 +18,7 @@ import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { Plus, Sparkles, Loader2 } from 'lucide-react';
 import { Task } from '../../types';
 import { generateTaskAnalysis } from '../../services/grokService';
+import { saveAIInteraction } from '../../services/interactionService';
 import {
   fetchTasks,
   createTask as createTaskDoc,
@@ -99,6 +103,9 @@ const TaskBoard: React.FC = () => {
         const { decomposeTask } = await import('../../services/grokService');
 
         const subtasks = await decomposeTask(taskTitle);
+
+        // Save interaction to Firestore
+        await saveAIInteraction('Task AI: Decompose', taskTitle, JSON.stringify(subtasks));
 
         if (subtasks.length > 0) {
           // Replace the original task with newly created Firestore tasks
@@ -227,6 +234,9 @@ const TaskBoard: React.FC = () => {
       const taskStr = tasks.filter(t => t.status !== 'done').map(t => `${t.title} (${t.priority})`).join(', ');
       const response = await generateTaskAnalysis(taskStr);
       setAiAdvice(response);
+      
+      // Save interaction to Firestore
+      await saveAIInteraction('Task AI: Optimize', taskStr, response);
     } catch (err) {
       console.error(err);
     } finally {

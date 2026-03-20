@@ -7,40 +7,48 @@
   --color-primary-hover: #7c3aed;
   --color-background: var(--bg);
   --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-hover);
+  --color-text-primary: var(--text);
+  --color-text-secondary: var(--text-muted);
+  --color-text-tertiary: var(--text-subtle);
 }
 
 /* ─── DARK MODE (default) ─────────────────────────────── */
 :root {
-  --bg:           #0f1115;
-  --surface:      #18181b;
-  --surface-2:    #1f1f23;
-  --border:       rgba(255,255,255,0.08);
-  --border-hover: rgba(255,255,255,0.16);
-  --text:         #ffffff;
-  --text-muted:   #9ca3af;
-  --text-subtle:  #6b7280;
-  --input-bg:     rgba(0,0,0,0.25);
-  --sidebar-bg:   #111114;
-  --card-bg:      rgba(255,255,255,0.03);
-  --card-hover:   rgba(255,255,255,0.07);
-  --scrollbar:    rgba(139,92,246,0.35);
+  --bg:           #0B0E14; /* Slightly muted deep dark, not pure black */
+  --surface:      #151921; /* Cards slightly lighter than background */
+  --surface-2:    #1C222D; /* Even lighter for nested elements */
+  --border:       rgba(255, 255, 255, 0.06); /* Very subtle borders */
+  --border-hover: rgba(255, 255, 255, 0.12);
+  --text:         #F9FAFB; /* High contrast primary text */
+  --text-muted:   #9CA3AF; /* Secondary gray */
+  --text-subtle:  #6B7280; /* Tertiary text */
+  --input-bg:     #0F1219; /* Deep input background */
+  --sidebar-bg:   #0D1016; /* Sidebar between bg and surface */
+  --card-bg:      #151921;
+  --card-hover:   #1C222D;
+  --scrollbar:    rgba(139, 92, 246, 0.2);
+  --primary-glow: rgba(139, 92, 246, 0.15); /* Reduced glow */
 }
 
-/* ─── LIGHT MODE ──────────────────────────────────────── */
+/* ─── LIGHT MODE ─────────────────────────────────────── */
 .light {
-  --bg:           #f4f5f7;
-  --surface:      #ffffff;
-  --surface-2:    #f0f0f5;
-  --border:       rgba(0,0,0,0.10);
-  --border-hover: rgba(0,0,0,0.20);
-  --text:         #111827;
-  --text-muted:   #4b5563;
-  --text-subtle:  #9ca3af;
-  --input-bg:     rgba(0,0,0,0.04);
-  --sidebar-bg:   #ffffff;
-  --card-bg:      rgba(0,0,0,0.02);
-  --card-hover:   rgba(0,0,0,0.05);
-  --scrollbar:    rgba(139,92,246,0.30);
+  --bg:           #F1F5F9; /* Softer light background */
+  --surface:      #FFFFFF; /* Pure white cards */
+  --surface-2:    #E2E8F0; /* Lighter gray for secondary areas */
+  --border:       rgba(0, 0, 0, 0.05); /* Very subtle borders */
+  --border-hover: rgba(0, 0, 0, 0.1);
+  --text:         #0F172A; /* High contrast dark navy text */
+  --text-muted:   #475569; /* Medium gray for secondary text */
+  --text-subtle:  #94A3B8; /* Light gray for hints */
+  --input-bg:     #FFFFFF; /* White input fields in light mode */
+  --sidebar-bg:   #FFFFFF; /* White sidebar */
+  --card-bg:      #FFFFFF;
+  --card-hover:   #F8FAFC;
+  --scrollbar:    rgba(139, 92, 246, 0.1);
+  --primary-glow: rgba(139, 92, 246, 0.05);
 }
 
 /* ─── Global Transition ───────────────────────────────── */
@@ -53,26 +61,52 @@
   body {
     background-color: var(--bg);
     color: var(--text);
-    @apply antialiased font-sans;
+    @apply antialiased font-sans tracking-tight;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+
+  /* Improved Typography Scale */
+  .heading-xl { @apply text-4xl font-bold; }
+  .heading-lg { @apply text-2xl font-semibold; }
+  .heading-md { @apply text-xl font-medium; }
+  .body-main  { @apply text-base leading-relaxed; }
+  .body-sm    { @apply text-sm leading-normal; }
+  .caption    { @apply text-xs text-text-secondary; }
+
+  /* Smooth Transitions */
+  *, *::before, *::after {
+    @apply transition-all duration-200 ease-in-out;
   }
 
   /* Light-mode text overrides for common Tailwind classes */
   .light .text-white          { color: var(--text) !important; }
+  .light .text-gray-100       { color: var(--text) !important; }
+  .light .text-gray-200       { color: var(--text) !important; }
+  .light .text-gray-300       { color: var(--text-muted) !important; }
   .light .text-gray-400       { color: var(--text-muted) !important; }
   .light .text-gray-500       { color: var(--text-subtle) !important; }
-  .light .text-gray-300       { color: var(--text-muted) !important; }
 
-  /* Light-mode background overrides */
+  /* Light-mode background overrides to fix opacity issues */
   .light .bg-background       { background-color: var(--bg) !important; }
   .light .bg-surface          { background-color: var(--surface) !important; }
-  .light .bg-black\/20        { background-color: var(--input-bg) !important; }
-  .light .bg-black\/30        { background-color: var(--input-bg) !important; }
-  .light .bg-white\/5         { background-color: var(--card-bg) !important; }
-  .light .bg-white\/10        { background-color: var(--card-hover) !important; }
-  .light .hover\:bg-white\/5:hover  { background-color: var(--card-bg) !important; }
-  .light .hover\:bg-white\/10:hover { background-color: var(--card-hover) !important; }
-
+  .light .bg-black\/20        { background-color: #f1f5f9 !important; }
+  .light .bg-black\/30        { background-color: #e2e8f0 !important; }
+  .light .bg-white\/5         { background-color: #f8fafc !important; }
+  .light .bg-white\/10        { background-color: #f1f5f9 !important; }
+  .light .bg-white\/20        { background-color: #e2e8f0 !important; }
+  
   /* Light-mode border overrides */
+  .light .border-white\/5     { border-color: var(--border) !important; }
+  .light .border-white\/10    { border-color: var(--border) !important; }
+  .light .border-white\/20    { border-color: var(--border-hover) !important; }
+  
+  /* Feature Specific Fixes for Light Mode */
+  .light .glass               { background-color: var(--surface) !important; backdrop-filter: none !important; border: 1px solid var(--border) !important; }
+  .light .glass-card          { background-color: var(--surface) !important; backdrop-filter: none !important; border: 1px solid var(--border) !important; }
+  .light .glass-card:hover    { background-color: var(--surface-2) !important; border-color: var(--border-hover) !important; }
   .light .border-white\/5     { border-color: var(--border) !important; }
   .light .border-white\/10    { border-color: var(--border) !important; }
 
@@ -94,7 +128,7 @@
 @layer utilities {
   .glass {
     background-color: var(--card-bg);
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(16px);
     border: 1px solid var(--border);
   }
 
@@ -102,15 +136,20 @@
     background-color: var(--card-bg);
     backdrop-filter: blur(12px);
     border: 1px solid var(--border);
-    @apply rounded-xl transition-all duration-300;
+    @apply rounded-xl transition-all duration-200;
   }
   .glass-card:hover {
     background-color: var(--card-hover);
-    box-shadow: 0 8px 32px rgba(139,92,246,0.15);
+    border-color: var(--border-hover);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  .subtle-glow {
+    box-shadow: 0 0 15px var(--primary-glow);
   }
 
   .text-glow {
-    text-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+    text-shadow: 0 0 10px rgba(139, 92, 246, 0.3);
   }
 
   /* Theme-aware helpers */

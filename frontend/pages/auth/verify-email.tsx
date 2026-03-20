@@ -1,6 +1,9 @@
+'use client';
+
 import * as React from 'react';
-import { Loader2 } from 'lucide-react';
-import { sendEmailVerification } from 'firebase/auth';
+import { Loader2, ArrowLeft } from 'lucide-react';
+import { sendEmailVerification, signOut } from 'firebase/auth';
+import { useNavigate } from 'react-router-dom';
 
 import { auth } from '../../lib/firebaseClient';
 import PhoneVerificationPage from './phone-verification';
@@ -60,12 +63,19 @@ function isAccountVerified(user: typeof auth.currentUser): boolean {
 
 export default function VerifyEmailPage() {
   const setVerificationComplete = useStore((s) => s.setVerificationComplete);
+  const isVerified = useStore((s) => s.isVerified);
+  const navigate = useNavigate();
 
   const [mode, setMode] = React.useState<Mode>('email');
   const [isSending, setIsSending] = React.useState(false);
   const [isChecking, setIsChecking] = React.useState(false);
   const [cooldown, setCooldown] = React.useState(0);
   const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!isVerified) return;
+    navigate('/dashboard', { replace: true });
+  }, [isVerified, navigate]);
 
   React.useEffect(() => {
     if (cooldown <= 0) return;
@@ -153,6 +163,7 @@ export default function VerifyEmailPage() {
       <PhoneVerificationPage
         onVerified={() => {
           setVerificationComplete(true);
+          navigate('/dashboard', { replace: true });
         }}
       />
     );
@@ -209,6 +220,22 @@ export default function VerifyEmailPage() {
             className="w-full text-sm text-primary hover:text-primary/80 transition-colors"
           >
             Use phone verification instead
+          </button>
+
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await signOut(auth);
+              } catch {
+                // ignore
+              }
+              navigate('/login');
+            }}
+            className="w-full flex items-center justify-center gap-2 text-sm text-gray-400 hover:text-white transition-colors mt-2"
+          >
+            <ArrowLeft size={14} />
+            Back to Login
           </button>
         </div>
       </div>

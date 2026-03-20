@@ -4,7 +4,7 @@ const { successResponse, errorResponse } = require('../utils/responseHandler');
 
 const chat = async (req, res) => {
     try {
-        const { message } = req.body;
+        const { message, context } = req.body;
         const userId = req.user.id;
 
         if (!message || typeof message !== 'string' || message.trim() === '') {
@@ -15,7 +15,9 @@ const chat = async (req, res) => {
         const dbHistory = await getChatHistory(userId, 10);
 
         // 2. Generate AI Response
-        const aiResponseText = await generateGrokResponse(message.trim(), dbHistory);
+        // Combine prompt with context if provided
+        const fullPrompt = context ? `${context}\n\nUser Question: ${message.trim()}` : message.trim();
+        const aiResponseText = await generateGrokResponse(fullPrompt, dbHistory);
 
         // 3. Save User Message to DB
         await saveChatMessage(userId, 'user', message.trim());

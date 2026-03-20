@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { FileText, Upload, ChevronRight, File, Loader2, Play, Paperclip } from 'lucide-react';
 import { analyzeDocument } from '../../services/grokService';
+import { saveAIInteraction } from '../../services/interactionService';
 import { AnalysisResult } from '../../types';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -21,11 +22,24 @@ const DocumentAnalyzer: React.FC = () => {
     setIsAnalyzing(true);
     try {
       const response = await analyzeDocument(textToAnalyze);
-      const parsed = JSON.parse(response);
+      
+      let parsed;
+      try {
+        parsed = typeof response === 'string' ? JSON.parse(response) : response;
+      } catch (e) {
+        // Fallback for malformed JSON but with some content
+        console.warn('JSON parse failed, attempting cleanup', e);
+        const cleaned = response.replace(/```json\s*/i, '').replace(/```\s*/i, '').replace(/\s*```/g, '').trim();
+        parsed = JSON.parse(cleaned);
+      }
+
       setResult(parsed);
+
+      // Save interaction to Firestore (even if parse failed earlier, we use raw response)
+      saveAIInteraction('Doc Analyzer', textToAnalyze.slice(0, 1000), typeof response === 'string' ? response : JSON.stringify(response));
     } catch (error) {
-      console.error(error);
-      alert('Analysis failed. Please try again.');
+      console.error('Analysis error:', error);
+      alert('Analysis failed. The AI returned an unexpected format. Please try again.');
     } finally {
       setIsAnalyzing(false);
     }

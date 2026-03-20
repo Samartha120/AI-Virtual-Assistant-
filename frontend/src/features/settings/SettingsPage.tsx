@@ -7,6 +7,7 @@ import {
     Bell,
     Shield,
     Cpu,
+    Plus,
     Moon,
     Sun,
     Save,
@@ -70,42 +71,42 @@ const SettingsPage: React.FC = () => {
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-                        <p className="text-gray-400 mt-1">Manage your NexusAI preferences and configurations.</p>
+                        <h1 className="heading-xl text-text-primary">Settings</h1>
+                        <p className="body-sm text-text-secondary mt-1">Manage your NexusAI preferences and configurations.</p>
                     </div>
 
                     <button
                         onClick={handleSave}
                         disabled={isSaving}
-                        className="flex items-center px-4 py-2 bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30 rounded-lg transition-all"
+                        className="flex items-center px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 rounded-xl transition-all shadow-sm"
                     >
                         {isSaving ? (
-                            <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin mr-2" />
+                            <Loader2 size={18} className="animate-spin mr-2" />
                         ) : saveSuccess ? (
-                            <CheckCircle2 size={18} className="mr-2 text-emerald-400" />
+                            <CheckCircle2 size={18} className="mr-2 text-emerald-500" />
                         ) : (
                             <Save size={18} className="mr-2" />
                         )}
-                        {saveSuccess ? 'Saved' : 'Save Changes'}
+                        <span className="font-medium">{saveSuccess ? 'Saved' : 'Save Changes'}</span>
                     </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
 
                     {/* Sidebar Tabs */}
-                    <div className="col-span-1 space-y-2">
+                    <div className="col-span-1 space-y-1">
                         {tabs.map((tab) => {
                             const isActive = activeTab === tab.id;
                             return (
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id as any)}
-                                    className={`w-full flex items-center p-3 rounded-xl transition-all ${isActive
-                                        ? 'bg-white/10 text-white border border-white/10 shadow-lg'
-                                        : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                                    className={`w-full flex items-center p-3 rounded-xl transition-all duration-200 group ${isActive
+                                        ? 'bg-primary/10 text-primary border border-primary/10 shadow-sm'
+                                        : 'text-text-secondary hover:bg-surface-muted hover:text-text-primary'
                                         }`}
                                 >
-                                    <tab.icon size={18} className={`mr-3 ${isActive ? 'text-primary' : ''}`} />
+                                    <tab.icon size={18} className={`mr-3 ${isActive ? 'text-primary' : 'group-hover:text-text-primary'}`} />
                                     <span className="font-medium text-sm">{tab.label}</span>
                                 </button>
                             );
@@ -119,18 +120,26 @@ const SettingsPage: React.FC = () => {
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.2 }}
-                            className="bg-surface/30 backdrop-blur-xl border border-white/5 rounded-2xl p-6 md:p-8 shadow-2xl"
+                            className="bg-surface border border-border rounded-2xl p-6 md:p-8 shadow-sm"
                         >
 
                             {/* PROFILE TAB */}
                             {activeTab === 'profile' && (
-                                <div className="space-y-6">
-                                    <h2 className="text-xl font-semibold mb-4 border-b border-white/5 pb-4">Profile Information</h2>
+                                <div className="space-y-8">
+                                    <div>
+                                        <h2 className="heading-md text-text-primary mb-1">Profile Information</h2>
+                                        <p className="caption text-text-tertiary">Update your personal details and avatar.</p>
+                                    </div>
 
                                     <div className="flex items-center space-x-6">
-                                        <NeuralAvatar state="idle" size="lg" />
+                                        <div className="relative group">
+                                            <NeuralAvatar state="idle" size="lg" />
+                                            <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+                                                <Plus size={20} className="text-white" />
+                                            </div>
+                                        </div>
                                         <div>
-                                            <button className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-medium transition-colors">
+                                            <button className="px-4 py-2 bg-surface-muted hover:bg-surface-muted/80 border border-border rounded-xl text-sm font-medium transition-all text-text-primary">
                                                 Change Avatar
                                             </button>
                                         </div>
@@ -138,19 +147,19 @@ const SettingsPage: React.FC = () => {
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium text-gray-400">Display Name</label>
+                                            <label className="body-sm font-medium text-text-secondary">Display Name</label>
                                             <input
                                                 type="text"
                                                 defaultValue="Nexus User"
-                                                className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-primary/50 transition-colors"
+                                                className="w-full bg-input-bg border border-border rounded-xl p-3 text-text-primary focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all text-sm"
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium text-gray-400">Email Address</label>
+                                            <label className="body-sm font-medium text-text-secondary">Email Address</label>
                                             <input
                                                 type="email"
                                                 defaultValue="user@nexusai.enterprise"
-                                                className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-primary/50 transition-colors"
+                                                className="w-full bg-input-bg border border-border rounded-xl p-3 text-text-primary focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all text-sm"
                                             />
                                         </div>
                                     </div>
@@ -159,27 +168,30 @@ const SettingsPage: React.FC = () => {
 
                             {/* APPEARANCE TAB */}
                             {activeTab === 'appearance' && (
-                                <div className="space-y-6">
-                                    <h2 className="text-xl font-semibold mb-4 border-b border-white/5 pb-4">Appearance</h2>
+                                <div className="space-y-8">
+                                    <div>
+                                        <h2 className="heading-md text-text-primary mb-1">Appearance</h2>
+                                        <p className="caption text-text-tertiary">Customize how Nexus looks on your device.</p>
+                                    </div>
 
                                     <div className="space-y-4">
-                                        <h3 className="text-sm font-medium text-gray-400">Theme Preference</h3>
+                                        <h3 className="body-sm font-medium text-text-secondary uppercase tracking-widest text-[10px]">Theme Preference</h3>
                                         <div className="grid grid-cols-2 gap-4">
                                             <button
                                                 onClick={() => setTheme('dark')}
-                                                className={`p-4 rounded-xl border flex flex-col items-center justify-center space-y-3 transition-all ${theme === 'dark' ? 'bg-primary/10 border-primary text-white' : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/5'
+                                                className={`p-6 rounded-2xl border flex flex-col items-center justify-center space-y-3 transition-all duration-200 ${theme === 'dark' ? 'bg-primary/5 border-primary text-primary shadow-sm' : 'bg-input-bg border-border text-text-tertiary hover:border-border-strong hover:text-text-primary'
                                                     }`}
                                             >
-                                                <Moon size={24} className={theme === 'dark' ? 'text-primary' : ''} />
-                                                <span className="font-medium text-sm">Dark Mode</span>
+                                                <Moon size={28} className={theme === 'dark' ? 'text-primary' : ''} />
+                                                <span className="font-bold text-sm">Dark Mode</span>
                                             </button>
                                             <button
                                                 onClick={() => setTheme('light')}
-                                                className={`p-4 rounded-xl border flex flex-col items-center justify-center space-y-3 transition-all ${theme === 'light' ? 'bg-primary/10 border-primary text-white' : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/5'
+                                                className={`p-6 rounded-2xl border flex flex-col items-center justify-center space-y-3 transition-all duration-200 ${theme === 'light' ? 'bg-primary/5 border-primary text-primary shadow-sm' : 'bg-input-bg border-border text-text-tertiary hover:border-border-strong hover:text-text-primary'
                                                     }`}
                                             >
-                                                <Sun size={24} className={theme === 'light' ? 'text-primary' : ''} />
-                                                <span className="font-medium text-sm">Light Mode</span>
+                                                <Sun size={28} className={theme === 'light' ? 'text-primary' : ''} />
+                                                <span className="font-bold text-sm">Light Mode</span>
                                             </button>
                                         </div>
                                     </div>

@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 /**
  * apiClient.ts
  * ─────────────────────────────────────────────────────────────────────────────
@@ -46,10 +45,10 @@ function normalizeBaseUrl(url: string): string {
     return noSlash.toLowerCase().endsWith('/api') ? noSlash.slice(0, -4) : noSlash;
 }
 
-// If VITE_API_URL is not set, default to same-origin.
-// - Local dev: Vite proxy handles `/api/*`.
-// - Backend-served frontend: same-origin works automatically.
-const BASE_URL: string = normalizeBaseUrl(import.meta.env.VITE_API_URL ?? '');
+// If NEXT_PUBLIC_API_URL is not set, default to same-origin.
+// - Local dev: set NEXT_PUBLIC_API_URL=http://localhost:5000
+// - Production: keep unset to use same-origin
+const BASE_URL: string = normalizeBaseUrl(process.env.NEXT_PUBLIC_API_URL ?? '');
 
 function normalizeApiPath(path: string): string {
     const p = path.startsWith('/') ? path : `/${path}`;

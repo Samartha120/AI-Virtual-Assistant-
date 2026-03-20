@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 /**
  * geminiService.ts (frontend/services — legacy location)
  * Legacy compatibility shim.

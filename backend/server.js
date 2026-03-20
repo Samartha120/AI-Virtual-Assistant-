@@ -62,6 +62,12 @@ app.use(cors(corsOptions));
 // Ensure preflight requests succeed (fixes "blocked by CORS policy" in browser)
 app.options(/.*/, cors(corsOptions));
 
+// Request logger
+app.use((req, res, next) => {
+    console.log(`[REQ] ${req.method} ${req.path}`);
+    next();
+});
+
 // ─── Body Parsers ────────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -95,6 +101,28 @@ const authLimiter = rateLimit({
 });
 
 app.use(generalLimiter);
+
+// ─── Health Check ────────────────────────────────────────────────
+app.get('/api/health', async (req, res) => {
+    try {
+        const { adminDb } = require('./config/firebaseAdmin');
+        const snap = await adminDb.collection('health_check').limit(1).get();
+        res.json({
+            success: true,
+            status: 'OK',
+            firestore: 'CONNECTED',
+            env: process.env.NODE_ENV,
+            timestamp: new Date().toISOString()
+        });
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            status: 'ERROR',
+            firestore: 'FAILED',
+            error: err.message
+        });
+    }
+});
 
 // ─── Routes ───────────────────────────────────────────────────────
 // Public Grok AI routes (no auth required) — /api/chat, /api/chat/stream, /api/brainstorm, /api/analyze, /api/tasks/ai
@@ -143,7 +171,13 @@ app.use((req, res) => {
 
 // ─── Global Error Handler ─────────────────────────────────────────
 app.use((err, req, res, next) => {
-    console.error('[ERROR]', err.stack || err.message);
+    console.error('[CRITICAL_ERROR]', {
+        message: err.message,
+        stack: err.stack,
+        path: req.path,
+        method: req.method,
+        body: req.body
+    });
 
     // Handle Multer upload errors
     if (err.code === 'LIMIT_FILE_SIZE') {

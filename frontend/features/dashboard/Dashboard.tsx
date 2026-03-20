@@ -1,3 +1,6 @@
+/* eslint-disable react/no-unescaped-entities */
+'use client';
+
 import * as React from 'react';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
@@ -10,15 +13,14 @@ import {
   FileText,
   Zap
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { useStore } from '../../store/useStore';
-import { AppView } from '../../types';
 import { dashboardService } from '../../src/services/dashboardService';
 import { ApiError } from '../../services/apiClient';
 
 const Dashboard: React.FC = () => {
-  const { setCurrentView } = useStore();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     tasksPending: 0,
     chatMessages: 0,
@@ -69,7 +71,7 @@ const Dashboard: React.FC = () => {
           <motion.h1
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="text-4xl font-bold text-white tracking-tight mb-2"
+            className="heading-xl text-text-primary mb-2"
           >
             Command Center
           </motion.h1>
@@ -77,7 +79,7 @@ const Dashboard: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="text-gray-400"
+            className="text-text-secondary"
           >
             NexusAI Enterprise OS connected.
           </motion.p>
@@ -97,42 +99,42 @@ const Dashboard: React.FC = () => {
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
       >
         {/* Real Stats Row */}
-        <Card className="p-5 flex items-center justify-between group hover:border-primary/30 transition-colors">
+        <Card className="p-5 flex items-center justify-between group hover:border-primary/20 transition-all duration-200">
           <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Knowledge Base</p>
-            <h3 className="text-2xl font-bold text-white group-hover:text-primary transition-colors">{stats.knowledgeDocs} Docs</h3>
+            <p className="caption uppercase tracking-wider mb-1">Knowledge Base</p>
+            <h3 className="heading-md text-text-primary group-hover:text-primary transition-colors">{stats.knowledgeDocs} Docs</h3>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-105 transition-transform">
             <Database size={20} />
           </div>
         </Card>
 
-        <Card className="p-5 flex items-center justify-between group hover:border-emerald-500/30 transition-colors">
+        <Card className="p-5 flex items-center justify-between group hover:border-emerald-500/20 transition-all duration-200">
           <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Active Tasks</p>
-            <h3 className="text-2xl font-bold text-white group-hover:text-emerald-400 transition-colors">{stats.tasksPending} Pending</h3>
+            <p className="caption uppercase tracking-wider mb-1">Active Tasks</p>
+            <h3 className="heading-md text-text-primary group-hover:text-emerald-400 transition-colors">{stats.tasksPending} Pending</h3>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 group-hover:scale-105 transition-transform">
             <CheckCircle size={20} />
           </div>
         </Card>
 
-        <Card className="p-5 flex items-center justify-between group hover:border-blue-500/30 transition-colors">
+        <Card className="p-5 flex items-center justify-between group hover:border-blue-500/20 transition-all duration-200">
           <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Neural Chats</p>
-            <h3 className="text-2xl font-bold text-white group-hover:text-blue-400 transition-colors">{stats.chatMessages} Messages</h3>
+            <p className="caption uppercase tracking-wider mb-1">Neural Chats</p>
+            <h3 className="heading-md text-text-primary group-hover:text-blue-400 transition-colors">{stats.chatMessages} Messages</h3>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
+          <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 group-hover:scale-105 transition-transform">
             <MessageSquare size={20} />
           </div>
         </Card>
 
-        <Card className="p-5 flex items-center justify-between group hover:border-amber-500/30 transition-colors">
+        <Card className="p-5 flex items-center justify-between group hover:border-amber-500/20 transition-all duration-200">
           <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">AI Model</p>
-            <h3 className="text-2xl font-bold text-white group-hover:text-amber-400 transition-colors">Nexus 2.0</h3>
+            <p className="caption uppercase tracking-wider mb-1">AI Model</p>
+            <h3 className="heading-md text-text-primary group-hover:text-amber-400 transition-colors">Nexus 2.0</h3>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400 group-hover:scale-105 transition-transform">
             <Brain size={20} />
           </div>
         </Card>
@@ -141,7 +143,7 @@ const Dashboard: React.FC = () => {
         <div className="lg:col-span-3 space-y-6">
           {/* Quick Actions */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <motion.div variants={item} onClick={() => setCurrentView(AppView.CHAT)} className="cursor-pointer">
+            <motion.div variants={item} onClick={() => navigate('/neural-chat')} className="cursor-pointer">
               <Card hoverEffect className="h-full flex flex-col justify-between min-h-[160px] bg-linear-to-br from-surface to-background">
                 <div className="p-2 w-fit rounded-lg bg-primary/20 text-primary mb-4">
                   <MessageSquare size={24} />
@@ -153,7 +155,7 @@ const Dashboard: React.FC = () => {
               </Card>
             </motion.div>
 
-            <motion.div variants={item} onClick={() => setCurrentView(AppView.DOC_ANALYZER)} className="cursor-pointer">
+            <motion.div variants={item} onClick={() => navigate('/doc-analyzer')} className="cursor-pointer">
               <Card hoverEffect className="h-full flex flex-col justify-between min-h-[160px] bg-linear-to-br from-surface to-background">
                 <div className="p-2 w-fit rounded-lg bg-blue-500/20 text-blue-400 mb-4">
                   <FileText size={24} />
@@ -165,7 +167,7 @@ const Dashboard: React.FC = () => {
               </Card>
             </motion.div>
 
-            <motion.div variants={item} onClick={() => setCurrentView(AppView.BRAINSTORMER)} className="cursor-pointer">
+            <motion.div variants={item} onClick={() => navigate('/brainstormer')} className="cursor-pointer">
               <Card hoverEffect className="h-full flex flex-col justify-between min-h-[160px] bg-linear-to-br from-surface to-background">
                 <div className="p-2 w-fit rounded-lg bg-amber-500/20 text-amber-400 mb-4">
                   <Zap size={24} />

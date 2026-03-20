@@ -1,6 +1,10 @@
+/* eslint-disable react/no-unescaped-entities */
+'use client';
+
 import React, { useState, useRef } from 'react';
 import { FileText, Upload, ChevronRight, File, Loader2, Play, Paperclip } from 'lucide-react';
 import { analyzeDocument } from '../../services/grokService';
+import { saveAIInteraction } from '../../services/interactionService';
 import { AnalysisResult } from '../../types';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -21,11 +25,24 @@ const DocumentAnalyzer: React.FC = () => {
     setIsAnalyzing(true);
     try {
       const response = await analyzeDocument(textToAnalyze);
-      const parsed = JSON.parse(response);
+      
+      let parsed;
+      try {
+        parsed = typeof response === 'string' ? JSON.parse(response) : response;
+      } catch (e) {
+        // Fallback for malformed JSON but with some content
+        console.warn('JSON parse failed, attempting cleanup', e);
+        const cleaned = response.replace(/```json\s*/i, '').replace(/```\s*/i, '').replace(/\s*```/g, '').trim();
+        parsed = JSON.parse(cleaned);
+      }
+
       setResult(parsed);
+      
+      // Save interaction to Firestore (even if parse failed earlier, we use raw response)
+      await saveAIInteraction('Doc Analyzer', textToAnalyze.slice(0, 1000), typeof response === 'string' ? response : JSON.stringify(response));
     } catch (error) {
-      console.error(error);
-      alert('Analysis failed. Please try again.');
+      console.error('Analysis error:', error);
+      alert('Analysis failed. The AI returned an unexpected format. Please try again.');
     } finally {
       setIsAnalyzing(false);
     }
@@ -134,86 +151,132 @@ const DocumentAnalyzer: React.FC = () => {
 
         <Card className="flex-1 flex flex-col p-4 bg-background/50 overflow-hidden relative">
           {attachedFile ? (
-            <div className="flex-1 flex flex-col items-center justify-center relative">
-              <button
-                onClick={removeAttachment}
-                className="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-red-400 hover:bg-white/5 rounded-lg transition-colors"
-                title="Remove attachment"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
-              </button>
-              <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center mb-3">
-                <FileText className="text-primary" size={32} />
+            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-4">
+                <FileText size={32} />
               </div>
-              <span className="text-white font-medium text-sm text-center max-w-[80%] truncate">{attachedFile.name}</span>
-              <span className="text-xs text-gray-400 mt-1">{(attachedFile.size / 1024).toFixed(1)} KB</span>
+              <h3 className="text-lg font-bold text-white mb-1 truncate max-w-full px-4">{attachedFile.name}</h3>
+              <p className="text-sm text-gray-400 mb-6">{(attachedFile.size / 1024).toFixed(1)} KB</p>
+              
+              <div className="w-full h-px bg-white/5 mb-6" />
+              
+              <div className="flex items-center gap-4 text-xs text-gray-500 mb-8">
+                <div className="flex items-center gap-1.5">
+                  <Paperclip size={14} />
+                  <span>{attachedFile.content.length} chars</span>
+                </div>
+              </div>
+
+              <div className="flex gap-3 w-full">
+                <Button variant="secondary" className="flex-1" onClick={removeAttachment}>
+                  Cancel
+                </Button>
+                <Button className="flex-1" onClick={handleAnalyze} isLoading={isAnalyzing}>
+                  Analyze <Play size={14} className="ml-2 fill-current" />
+                </Button>
+              </div>
             </div>
           ) : (
-            <textarea
-              className="flex-1 bg-transparent resize-none border-none outline-none text-sm text-gray-300 placeholder:text-gray-600 custom-scrollbar"
-              placeholder="Paste document text here or attach a text file..."
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-            />
-          )}
-          <div className="mt-4 pt-4 border-t border-white/5 flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-                className="hidden"
-                accept=".txt,.md,.csv,.json,.js,.ts,.html,.css,text/*,.docx,.pptx,.xlsx,.xls"
+            <>
+              <textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="Paste your document text here..."
+                className="flex-1 w-full bg-transparent border-none outline-none text-sm text-gray-300 placeholder:text-gray-600 resize-none custom-scrollbar leading-relaxed"
               />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors flex items-center gap-2"
-                title="Attach text document"
-              >
-                <Paperclip size={18} />
-              </button>
-              <span className="text-xs text-gray-500">
-                {attachedFile ? `${attachedFile.content.length} chars` : `${content.length} chars`}
-              </span>
-            </div>
-            <Button
-              onClick={handleAnalyze}
-              isLoading={isAnalyzing}
-              disabled={(!content.trim() && !attachedFile)}
-            >
-              Analyze <Play className="ml-2 w-3 h-3" />
-            </Button>
-          </div>
+              
+              <div className="pt-4 border-t border-white/5 flex items-center justify-between">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  accept=".txt,.md,.docx,.xlsx,.xls,.csv,.pptx"
+                />
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                  title="Attach file"
+                >
+                  <Paperclip size={20} />
+                </button>
+                
+                <Button 
+                  onClick={handleAnalyze} 
+                  isLoading={isAnalyzing} 
+                  disabled={!content.trim()}
+                  className="px-6"
+                >
+                  Analyze <ChevronRight size={16} className="ml-1" />
+                </Button>
+              </div>
+            </>
+          )}
         </Card>
       </div>
 
-      {/* Results Section */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
-        {result ? (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Executive Summary */}
-            <Card className="p-6 bg-linear-to-br from-primary/10 to-transparent border-primary/20">
-              <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
-                <FileText className="text-primary" size={20} />
-                Executive Summary
-              </h3>
-              <p className="text-gray-200 leading-relaxed">{result.summary}</p>
-            </Card>
+      {/* Result Section */}
+      <div className="flex-1 flex flex-col gap-4">
+        <header className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+              <FileText size={20} />
+            </div>
+            <h2 className="text-xl font-bold text-white tracking-tight">Analysis Output</h2>
+          </div>
+          {result && (
+            <button 
+              onClick={() => { setContent(''); setResult(null); setAttachedFile(null); }}
+              className="text-xs text-gray-500 hover:text-white transition-colors"
+            >
+              Clear Analysis
+            </button>
+          )}
+        </header>
 
-            <div className="grid grid-cols-1 gap-8">
-              <AnalysisSection title="Key Insights" items={result.keyPoints} color="secondary" />
-              <AnalysisSection title="Action Items" items={result.actionItems} color="accent" />
+        <Card className="flex-1 p-6 bg-background/50 overflow-y-auto custom-scrollbar">
+          {!result && !isAnalyzing && (
+            <div className="h-full flex flex-col items-center justify-center text-center opacity-40 grayscale group hover:grayscale-0 transition-all duration-500">
+              <div className="w-20 h-20 rounded-[2rem] bg-white/5 flex items-center justify-center mb-6 border border-white/10 group-hover:border-primary/30 transition-colors">
+                <FileText size={40} className="text-gray-400 group-hover:text-primary transition-colors" />
+              </div>
+              <h3 className="text-lg font-bold text-white mb-2">Ready to Analyze</h3>
+              <p className="text-sm text-gray-400 max-w-xs leading-relaxed px-4">
+                Paste your document text on the left or attach a file to generate summaries, insights, and action items.
+              </p>
             </div>
-          </div>
-        ) : (
-          <div className="h-full flex flex-col items-center justify-center text-center opacity-30 select-none">
-            <div className="w-24 h-24 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 rotate-12">
-              <FileText size={48} className="text-white" />
+          )}
+
+          {isAnalyzing && (
+            <div className="h-full flex flex-col items-center justify-center text-center">
+              <div className="relative mb-8">
+                <div className="absolute inset-0 bg-primary/20 blur-3xl animate-pulse rounded-full" />
+                <Loader2 size={48} className="text-primary animate-spin relative z-10" />
+              </div>
+              <h3 className="text-lg font-bold text-white mb-2">Analyzing Intelligence...</h3>
+              <p className="text-sm text-gray-400 animate-pulse">Our neural link is processing your document</p>
             </div>
-            <h3 className="text-xl font-bold text-white mb-2">Ready to Analyze</h3>
-            <p className="text-gray-400 max-w-xs">Paste your document text on the left or attach a file to generate summary, insights, and action items.</p>
-          </div>
-        )}
+          )}
+
+          {result && (
+            <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <div className="space-y-3">
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                  Executive Summary
+                </h3>
+                <p className="text-lg text-white leading-relaxed font-medium">
+                  {result.summary}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <AnalysisSection title="Key Insights" items={result.keyPoints} color="secondary" />
+                <AnalysisSection title="Action Items" items={result.actionItems} color="accent" />
+              </div>
+            </div>
+          )}
+        </Card>
       </div>
     </div>
   );

@@ -28,9 +28,18 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    "baseUrl": "."
+    "baseUrl": ".",
+    "strict": false,
+    "incremental": true,
+    "resolveJsonModule": true
   },
   "include": [
-    "frontend"
+    "frontend",
+    "vite.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "app",
+    "components"
   ]
 }

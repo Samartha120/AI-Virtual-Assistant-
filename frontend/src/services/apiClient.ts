@@ -1,12 +1,14 @@
-/// <reference types="vite/client" />
 /**
  * apiClient.ts
  * ─────────────────────────────────────────────────────────────────────────────
  * Centralised HTTP client for all backend REST API calls.
  *
- * Base URL is driven exclusively by the VITE_API_URL environment variable:
- *   • Production     → (unset) same-origin
- *   • .env.local    → http://localhost:5000             (local dev override)
+ * Base URL is driven by the NEXT_PUBLIC_API_URL environment variable:
+ *   • Production  → (unset) same-origin
+ *   • Local dev   → http://localhost:5000 (local dev override)
+ *
+ * In Vite, prefer setting VITE_API_URL; the Vite config maps it to
+ * process.env.NEXT_PUBLIC_API_URL for backwards compatibility.
  *
  * Usage:
  *   import { api } from '@/src/services/apiClient';
@@ -44,8 +46,10 @@ function normalizeBaseUrl(url: string): string {
     return noSlash.toLowerCase().endsWith('/api') ? noSlash.slice(0, -4) : noSlash;
 }
 
-// If VITE_API_URL is not set, default to same-origin (Vite proxy / production same-origin).
-const BASE_URL: string = normalizeBaseUrl(import.meta.env.VITE_API_URL ?? '');
+// If NEXT_PUBLIC_API_URL is not set, default to same-origin.
+// - Local dev: set NEXT_PUBLIC_API_URL=http://localhost:5000
+// - Production: keep unset to use same-origin
+const BASE_URL: string = normalizeBaseUrl(process.env.NEXT_PUBLIC_API_URL ?? '');
 
 function normalizeApiPath(path: string): string {
     const p = path.startsWith('/') ? path : `/${path}`;

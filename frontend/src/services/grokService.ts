@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 /**
  * grokService.ts
  * ─────────────────────────────────────────────────────────────────────────────
@@ -95,4 +94,18 @@ export const decomposeTask = async (
     taskTitle: task,
   });
   return response.subtasks || [];
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// analyzeImage — used by KnowledgeBase.tsx for photo uploads
+// ─────────────────────────────────────────────────────────────────────────────
+export const analyzeImage = async (
+  base64Image: string,
+  prompt: string = "Analyze this document image. Extract all text and provide a 2-sentence summary."
+): Promise<string> => {
+  const response = await api.post<{ success: boolean; result: string }>('/api/vision', {
+    image: base64Image,
+    prompt,
+  });
+  return response.result || "";
 };

@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 /**
  * grokService.ts
  * ─────────────────────────────────────────────────────────────────────────────
@@ -18,13 +17,13 @@ import { api, API_BASE_URL } from './apiClient';
 
 export const askNexus = async (
   prompt: string,
-  _context?: string,
+  context?: string,
   _useSearch: boolean = false,
   history?: Array<{ role: 'user' | 'assistant'; content: string }>
 ): Promise<string> => {
   const response = await api.post<{ success: boolean; reply?: string; data?: { reply: string } }>(
     '/api/chat',
-    { message: prompt, history: history ?? [] }
+    { message: prompt, context, history: history ?? [] }
   );
   return response.reply || response.data?.reply || '';
 };
@@ -148,4 +147,18 @@ export const decomposeTask = async (
     taskTitle: task,
   });
   return response.subtasks || [];
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// analyzeImage — used by KnowledgeBase.tsx for photo uploads
+// ─────────────────────────────────────────────────────────────────────────────
+export const analyzeImage = async (
+  base64Image: string,
+  prompt: string = "Analyze this document image. Extract all text and provide a 2-sentence summary."
+): Promise<string> => {
+  const response = await api.post<{ success: boolean; result: string }>('/api/vision', {
+    image: base64Image,
+    prompt,
+  });
+  return response.result || "";
 };

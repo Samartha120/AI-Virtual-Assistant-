@@ -22,10 +22,10 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ role, content, isStrea
             <div className={cn(
                 "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border",
                 isUser
-                    ? "bg-primary/10 border-primary/20 text-primary"
-                    : "bg-emerald-500/10 border-emerald-500/20 text-emerald-500"
+                    ? "bg-primary/5 border-primary/10 text-primary"
+                    : "bg-emerald-500/5 border-emerald-500/10 text-emerald-500"
             )}>
-                {isUser ? <User className="h-5 w-5" /> : <Bot className="h-5 w-5" />}
+                {isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
             </div>
 
             {/* Content */}
@@ -34,10 +34,10 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ role, content, isStrea
                 isUser ? "text-right" : "text-left"
             )}>
                 <div className={cn(
-                    "inline-block rounded-2xl px-5 py-3 text-sm leading-relaxed max-w-[85%]",
+                    "inline-block rounded-2xl px-4 py-2.5 text-sm leading-relaxed max-w-[85%]",
                     isUser
-                        ? "bg-primary text-white"
-                        : "glass border border-white/10 text-gray-100"
+                        ? "bg-primary text-white shadow-sm"
+                        : "bg-surface border border-border text-text-primary"
                 )}>
                     {isUser ? (
                         <p className="whitespace-pre-wrap">{content}</p>

@@ -190,4 +190,35 @@ router.post('/tasks/ai', async (req, res) => {
     }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/vision
+// Body: { image: string (base64), prompt?: string }
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/vision', async (req, res) => {
+    try {
+        const { image, prompt } = req.body;
+
+        if (!image || typeof image !== 'string' || !image.trim()) {
+            return res.status(400).json({ success: false, error: 'Image (base64) is required' });
+        }
+
+        // Strip data prefix if present (e.g., data:image/jpeg;base64,)
+        const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
+
+        const { analyzeImage } = require('../services/grok.service');
+        const result = await analyzeImage(base64Data, prompt);
+        
+        res.json({ success: true, result });
+
+    } catch (error) {
+        console.error('[/api/vision Error]', error);
+        res.status(error.status || 500).json({ 
+            success: false, 
+            error: 'Vision analysis failed', 
+            detail: error.message, 
+            code: error.code 
+        });
+    }
+});
+
 module.exports = router;

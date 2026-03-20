@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage as IChatMessage } from '../../types';
 import { askNexus } from '../../services/grokService';
 import { getUserFacingAiError } from '../../services/errorUtils';
+import { saveAIInteraction } from '../../services/interactionService';
 import { ChatHeader } from '../../components/chat/ChatHeader';
 import { ChatMessage } from '../../components/chat/ChatMessage';
 import { ChatInput } from '../../components/chat/ChatInput';
@@ -69,6 +70,9 @@ const ChatInterface: React.FC = () => {
     try {
       // Get full response from API
       const responseText = await askNexus(text);
+
+      // Save interaction to Firestore
+      saveAIInteraction('Neural Chat', text, responseText);
 
       // Start streaming simulation
       setIsLoading(false);

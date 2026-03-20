@@ -14,47 +14,76 @@ function requireEnv(name) {
 function initFirebaseAdmin() {
   if (admin.apps.length) return;
 
-  const projectId = requireEnv('FIREBASE_PROJECT_ID');
-  const clientEmail = requireEnv('FIREBASE_CLIENT_EMAIL');
-  let privateKeyRaw = requireEnv('FIREBASE_PRIVATE_KEY').trim();
-  if (privateKeyRaw.endsWith(',')) privateKeyRaw = privateKeyRaw.slice(0, -1).trim();
-  if (
-    (privateKeyRaw.startsWith('"') && privateKeyRaw.endsWith('"')) ||
-    (privateKeyRaw.startsWith("'") && privateKeyRaw.endsWith("'"))
-  ) {
-    privateKeyRaw = privateKeyRaw.slice(1, -1);
-  }
-  const privateKey = privateKeyRaw.replace(/\\n/g, '\n');
+  try {
+    const projectId = requireEnv('FIREBASE_PROJECT_ID');
+    const clientEmail = requireEnv('FIREBASE_CLIENT_EMAIL');
+    let privateKeyRaw = requireEnv('FIREBASE_PRIVATE_KEY').trim();
+    
+    // Aggressively clean the raw string: remove quotes, literal \n strings, and normalize
+    let privateKey = privateKeyRaw
+      .replace(/^["']|["']$/g, '')
+      .replace(/\\n/g, '\n')
+      .trim();
 
-  // For Storage, Firebase default bucket is usually: <project-id>.appspot.com
-  // Some UIs/docs show *.firebasestorage.app domains; those are not bucket names.
-  let storageBucketRaw = (process.env.FIREBASE_STORAGE_BUCKET || '').trim();
-  if (
-    (storageBucketRaw.startsWith('"') && storageBucketRaw.endsWith('"')) ||
-    (storageBucketRaw.startsWith("'") && storageBucketRaw.endsWith("'"))
-  ) {
-    storageBucketRaw = storageBucketRaw.slice(1, -1);
-  }
-  const storageBucket =
-    !storageBucketRaw || storageBucketRaw.includes('firebasestorage')
-      ? `${projectId}.appspot.com`
-      : storageBucketRaw;
+    // Rebuild it from base64 body to ensure perfect PEM formatting
+    if (privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+       const body = privateKey
+         .replace('-----BEGIN PRIVATE KEY-----', '')
+         .replace('-----END PRIVATE KEY-----', '')
+         .replace(/[^A-Za-z0-9+/=]/g, ''); // remove EVERYTHING except valid base64
+       
+       const lines = [];
+       for (let i = 0; i < body.length; i += 64) {
+         lines.push(body.substring(i, i + 64));
+       }
+       privateKey = `-----BEGIN PRIVATE KEY-----\n${lines.join('\n')}\n-----END PRIVATE KEY-----\n`;
+    }
 
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId,
-      clientEmail,
-      privateKey,
-    }),
-    storageBucket,
-  });
+    // For Storage, Firebase default bucket is usually: <project-id>.appspot.com
+    // Some UIs/docs show *.firebasestorage.app domains; those are not bucket names.
+    let storageBucketRaw = (process.env.FIREBASE_STORAGE_BUCKET || '').trim();
+    if (
+      (storageBucketRaw.startsWith('"') && storageBucketRaw.endsWith('"')) ||
+      (storageBucketRaw.startsWith("'") && storageBucketRaw.endsWith("'"))
+    ) {
+      storageBucketRaw = storageBucketRaw.slice(1, -1);
+    }
+    const storageBucket =
+      !storageBucketRaw || storageBucketRaw.includes('firebasestorage')
+        ? `${projectId}.appspot.com`
+        : storageBucketRaw;
+
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId,
+        clientEmail,
+        privateKey,
+      }),
+      storageBucket,
+    });
+    console.log('[FirebaseAdmin] Successfully initialized');
+    return true;
+  } catch (err) {
+    console.error('[FirebaseAdmin] Initialization failed:', err.message);
+    return false;
+  }
 }
 
-initFirebaseAdmin();
+const isInitialized = initFirebaseAdmin();
 
-const adminAuth = getAuth();
-const adminDb = getFirestore();
-const adminBucket = getStorage().bucket();
+let adminAuth = null;
+let adminDb = null;
+let adminBucket = null;
+
+if (isInitialized) {
+  try {
+    adminAuth = getAuth();
+    adminDb = getFirestore();
+    adminBucket = getStorage().bucket();
+  } catch (err) {
+    console.error('[FirebaseAdmin] Service acquisition failed:', err.message);
+  }
+}
 
 module.exports = {
   admin,

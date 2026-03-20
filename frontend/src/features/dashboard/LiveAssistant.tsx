@@ -2,6 +2,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { askNexus } from '../../services/grokService';
 import { getUserFacingAiError } from '../../services/errorUtils';
+import { saveAIInteraction } from '../../services/interactionService';
 
 const LiveAssistant: React.FC = () => {
   const [isActive, setIsActive] = useState(false);
@@ -52,6 +53,9 @@ const LiveAssistant: React.FC = () => {
 
         pushLine(`Nexus: ${reply}`);
         speak(reply);
+
+        // Save interaction to Firestore
+        saveAIInteraction('Live Assistant', userText, reply);
       }
     } finally {
       processingRef.current = false;

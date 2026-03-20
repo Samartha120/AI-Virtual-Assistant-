@@ -1,6 +1,9 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, User as UserIcon, Loader2, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import {
   createUserWithEmailAndPassword,
   fetchSignInMethodsForEmail,
@@ -15,12 +18,25 @@ import {
 
 import { auth } from '../../lib/firebaseClient';
 import { useStore } from '../../store/useStore';
+import GoogleIcon from './GoogleIcon';
 
-const AuthPage: React.FC = () => {
-  const { login, targetSwitchEmail, setTargetSwitchEmail } = useStore();
+interface AuthPageProps {
+  defaultMode?: 'login' | 'signup';
+}
 
-  const [isLogin, setIsLogin] = useState(true);
+const AuthPage: React.FC<AuthPageProps> = ({ defaultMode = 'login' }) => {
+  const { login, targetSwitchEmail, setTargetSwitchEmail, isAuthenticated, isVerified, isAuthLoading } = useStore();
+  const navigate = useNavigate();
+
+  const [isLogin, setIsLogin] = useState(defaultMode === 'login');
   const [email, setEmail] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedEmail = localStorage.getItem('nexus:lastEmail');
+      if (savedEmail) setEmail(savedEmail);
+    }
+  }, []);
 
   useEffect(() => {
     if (targetSwitchEmail) {
@@ -29,9 +45,22 @@ const AuthPage: React.FC = () => {
       setTargetSwitchEmail(null);
     }
   }, [targetSwitchEmail, setTargetSwitchEmail]);
+
+  // If the user is already authenticated, don't allow landing on /login or /signup
+  // via browser back/forward or manual navigation.
+  useEffect(() => {
+    if (isAuthLoading) return;
+    if (!isAuthenticated) return;
+    if (!isVerified) {
+      navigate('/verify-email', { replace: true });
+      return;
+    }
+    navigate('/dashboard', { replace: true });
+  }, [isAuthLoading, isAuthenticated, isVerified, navigate]);
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -75,15 +104,14 @@ const AuthPage: React.FC = () => {
   const getAuthErrorMessage = (err: any) => {
     const code = err?.code as string | undefined;
     const projectId = auth?.app?.options?.projectId ? String(auth.app.options.projectId) : '';
-    const projectHint = projectId ? ` (project: ${projectId})` : '';
 
     switch (code) {
       case 'auth/invalid-credential':
-        return `Invalid email or password. If this email was created with Google sign-in, use “Continue with Google”, then enable a password in Settings so both methods work.${projectHint}`;
+        return `Incorrect password or this email uses a different sign-in method. If you signed up with Google, use “Continue with Google”. (Project: ${projectId})`;
       case 'auth/wrong-password':
-        return 'Invalid email or password. If you don\'t have an account yet, click “Sign up”.';
+        return `Incorrect password. If you signed up with Google, use “Continue with Google”. (Project: ${projectId})`;
       case 'auth/user-not-found':
-        return 'No account found for this email. Click “Sign up” to create one.';
+        return `No account found for this email. If you haven't signed up, click “Sign up” below. (Project: ${projectId})`;
       case 'auth/invalid-email':
         return 'Please enter a valid email address.';
       case 'auth/too-many-requests':
@@ -95,9 +123,9 @@ const AuthPage: React.FC = () => {
       case 'auth/weak-password':
         return 'Password is too weak. Use at least 6 characters.';
       case 'auth/operation-not-allowed':
-        return `Email/password sign-in is not enabled for this Firebase project.${projectHint}`;
+        return `Email/password sign-in is not enabled for this Firebase project. (Project: ${projectId})`;
       case 'auth/account-exists-with-different-credential':
-        return `This email is already registered with a different sign-in method. Sign in with your existing method first, then you can use both Email/Password and Google on future logins.${projectHint}`;
+        return `This email is already registered with a different sign-in method. Sign in with your existing method first, then you can use both Email/Password and Google on future logins. (Project: ${projectId})`;
       default:
         return err?.message || 'An error occurred. Please try again.';
     }
@@ -129,12 +157,18 @@ const AuthPage: React.FC = () => {
 
   const handleGoogleSignIn = async () => {
     setError(null);
-    setIsLoading(true);
+    setIsGoogleLoading(true);
 
     try {
       const provider = new GoogleAuthProvider();
       const cred = await signInWithPopup(auth, provider);
       const token = await cred.user.getIdToken();
+
+      // Save Google email for next time
+      if (cred.user.email && typeof window !== 'undefined') {
+        localStorage.setItem('nexus:lastEmail', normalizeEmail(cred.user.email));
+      }
+
       login(
         {
           id: cred.user.uid,
@@ -145,6 +179,7 @@ const AuthPage: React.FC = () => {
         },
         token
       );
+      navigate('/dashboard', { replace: true });
     } catch (err: any) {
       const code = err?.code as string | undefined;
 
@@ -192,7 +227,7 @@ const AuthPage: React.FC = () => {
 
       setError(getAuthErrorMessage(err));
     } finally {
-      setIsLoading(false);
+      setIsGoogleLoading(false);
     }
   };
 
@@ -201,9 +236,15 @@ const AuthPage: React.FC = () => {
     setError(null);
     setIsLoading(true);
 
+    const normalizedEmail = normalizeEmail(email);
+
+    // Save email immediately for next time, even if attempt fails
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('nexus:lastEmail', normalizedEmail);
+    }
+
     try {
       if (isLogin) {
-        const normalizedEmail = normalizeEmail(email);
         const cred = await signInWithEmailAndPassword(auth, normalizedEmail, password);
 
         // If the user previously attempted Google sign-in for this same email, link providers now
@@ -231,6 +272,7 @@ const AuthPage: React.FC = () => {
           },
           token
         );
+        navigate('/dashboard', { replace: true });
         return;
       }
 
@@ -258,6 +300,9 @@ const AuthPage: React.FC = () => {
         },
         token
       );
+      // Redirect to verify-email; ProtectedRoute will also enforce this,
+      // but explicit navigate gives a clean URL.
+      navigate('/verify-email', { replace: true });
     } catch (err: any) {
       const code = err?.code as string | undefined;
 
@@ -279,8 +324,12 @@ const AuthPage: React.FC = () => {
               );
               return;
             }
-          } catch {
-            // If Email Enumeration Protection blocks this, fall back to generic message.
+          } catch (fetchErr: any) {
+            // Log for debugging if needed, but don't show to user.
+            // Some Firebase projects block this for security (Email Enumeration Protection).
+            console.warn('Firebase fetchSignInMethodsForEmail failed:', fetchErr);
+            // If it fails with 400, it's often because the project doesn't allow it.
+            // We'll still show the generic error below.
           }
         }
       }
@@ -305,24 +354,24 @@ const AuthPage: React.FC = () => {
   return (
     <div className="flex h-screen w-screen items-center justify-center overflow-hidden bg-background">
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-[20%] left-[-10%] w-[50%] h-[50%] bg-primary/10 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/10 rounded-full blur-[120px]" />
+        <div className="absolute top-[20%] left-[-10%] w-[50%] h-[50%] bg-primary/5 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/5 rounded-full blur-[120px]" />
       </div>
 
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.4, type: 'spring' }}
-        className="relative z-10 w-full max-w-md p-8 bg-surface/40 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-3xl"
+        className="relative z-10 w-full max-w-md p-8 bg-surface border border-border shadow-xl rounded-3xl"
       >
         <div className="text-center mb-8">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-linear-to-tr from-primary to-blue-500 shadow-lg shadow-primary/30 flex items-center justify-center mb-6">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-linear-to-tr from-primary to-blue-500 shadow-md shadow-primary/20 flex items-center justify-center mb-6">
             <span className="text-3xl font-bold text-white">N</span>
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">
+          <h1 className="heading-lg text-text-primary tracking-tight">
             {isLogin ? 'Welcome back to NexusAI' : 'Join Nexus Enterprise OS'}
           </h1>
-          <p className="text-sm text-gray-400 mt-2">
+          <p className="body-sm text-text-secondary mt-2">
             {isLogin
               ? 'Enter your credentials to access your workspace.'
               : 'Create an account to unlock intelligent productivity.'}
@@ -338,15 +387,18 @@ const AuthPage: React.FC = () => {
                 exit={{ opacity: 0, height: 0 }}
                 className="space-y-2 overflow-hidden"
               >
-                <label className="text-sm font-medium text-gray-300">Full Name</label>
-                <div className="flex items-center w-full h-13 bg-black/20 border border-white/10 rounded-xl px-4 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all">
-                  <UserIcon className="text-gray-500 mr-3 shrink-0" size={18} />
+                <label htmlFor="name-input" className="body-sm font-medium text-text-secondary">Full Name</label>
+                <div className="flex items-center w-full h-12 bg-input-bg border border-border rounded-xl px-4 focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/40 transition-all">
+                  <UserIcon className="text-text-tertiary mr-3 shrink-0" size={18} />
                   <input
+                    id="name-input"
                     type="text"
+                    name="name"
+                    autoComplete="name"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="John Doe"
-                    className="flex-1 h-full bg-transparent text-white placeholder:text-gray-500 focus:outline-none"
+                    className="flex-1 h-full bg-transparent text-text-primary placeholder:text-text-tertiary focus:outline-none text-sm"
                   />
                 </div>
               </motion.div>
@@ -354,47 +406,53 @@ const AuthPage: React.FC = () => {
           </AnimatePresence>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-300">Email Address</label>
-            <div className="flex items-center w-full h-13 bg-black/20 border border-white/10 rounded-xl px-4 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all">
-              <Mail className="text-gray-500 mr-3 shrink-0" size={18} />
+            <label htmlFor="email-input" className="body-sm font-medium text-text-secondary">Email Address</label>
+            <div className="flex items-center w-full h-12 bg-input-bg border border-border rounded-xl px-4 focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/40 transition-all">
+              <Mail className="text-text-tertiary mr-3 shrink-0" size={18} />
               <input
+                id="email-input"
                 type="email"
+                name="email"
+                autoComplete="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@company.com"
-                className="flex-1 h-full bg-transparent text-white placeholder:text-gray-500 focus:outline-none"
+                className="flex-1 h-full bg-transparent text-text-primary placeholder:text-text-tertiary focus:outline-none text-sm"
               />
             </div>
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-gray-300">Password</label>
+              <label htmlFor="password-input" className="body-sm font-medium text-text-secondary">Password</label>
               {isLogin && (
                 <button
                   type="button"
                   onClick={handleForgotPassword}
-                  className="text-xs text-primary hover:text-primary/80 transition-colors"
+                  className="caption text-text-tertiary hover:text-text-primary transition-colors"
                 >
                   Forgot password?
                 </button>
               )}
             </div>
-            <div className="flex items-center w-full h-13 bg-black/20 border border-white/10 rounded-xl px-4 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all">
-              <Lock className="text-gray-500 mr-3 shrink-0" size={18} />
+            <div className="flex items-center w-full h-12 bg-input-bg border border-border rounded-xl px-4 focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/40 transition-all">
+              <Lock className="text-text-tertiary mr-3 shrink-0" size={18} />
               <input
+                id="password-input"
                 type={showPassword ? 'text' : 'password'}
+                name="password"
+                autoComplete={isLogin ? 'current-password' : 'new-password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="flex-1 h-full bg-transparent text-white placeholder:text-gray-500 focus:outline-none"
+                className="flex-1 h-full bg-transparent text-text-primary placeholder:text-text-tertiary focus:outline-none text-sm"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                className="ml-2 h-full px-2 text-gray-500 hover:text-white transition-colors flex items-center justify-center shrink-0"
+                className="ml-2 h-full px-2 text-text-tertiary hover:text-text-primary transition-colors flex items-center justify-center shrink-0"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -405,7 +463,7 @@ const AuthPage: React.FC = () => {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 text-center"
+              className="p-3 bg-red-500/5 border border-red-500/10 rounded-xl caption text-red-400 text-center"
             >
               {error}
             </motion.div>
@@ -413,10 +471,9 @@ const AuthPage: React.FC = () => {
 
           <button
             type="submit"
-            disabled={isLoading}
-            className="w-full relative group flex items-center justify-center py-3 bg-linear-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-white rounded-xl font-medium transition-all shadow-lg shadow-primary/25 overflow-hidden mt-6 disabled:opacity-70 disabled:cursor-not-allowed"
+            disabled={isLoading || isGoogleLoading}
+            className="w-full relative group flex items-center justify-center py-3 bg-white hover:bg-gray-100 text-[#0B0E14] rounded-xl font-bold transition-all shadow-lg mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out" />
             <span className="relative z-10 flex items-center">
               {isLoading ? (
                 <Loader2 className="animate-spin w-5 h-5" />
@@ -429,16 +486,30 @@ const AuthPage: React.FC = () => {
             </span>
           </button>
 
-          {isLogin && (
-            <button
-              type="button"
-              onClick={handleGoogleSignIn}
-              disabled={isLoading}
-              className="w-full flex items-center justify-center py-3 bg-black/20 hover:bg-black/30 text-white rounded-xl font-medium transition-all border border-white/10 disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              Continue with Google
-            </button>
-          )}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border"></div>
+            </div>
+            <div className="relative flex justify-center text-[10px] uppercase tracking-widest">
+              <span className="bg-surface px-2 text-text-tertiary">Or continue with</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={isLoading || isGoogleLoading}
+            className="w-full flex items-center justify-center py-3 bg-surface border border-border hover:bg-surface-muted text-text-secondary hover:text-text-primary rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isGoogleLoading ? (
+              <Loader2 className="animate-spin w-5 h-5" />
+            ) : (
+              <>
+                <GoogleIcon className="w-5 h-5 mr-2" />
+                Continue with Google
+              </>
+            )}
+          </button>
         </form>
 
         <div className="mt-6 text-center">
@@ -448,7 +519,7 @@ const AuthPage: React.FC = () => {
               setIsLogin((v) => !v);
               setError(null);
             }}
-            className="text-sm text-gray-400 hover:text-white transition-colors"
+            className="body-sm text-text-tertiary hover:text-text-primary transition-colors"
           >
             {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Log in'}
           </button>

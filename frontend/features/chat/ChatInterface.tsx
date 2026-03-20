@@ -1,7 +1,12 @@
+/* eslint-disable react/no-unescaped-entities */
+'use client';
+
 import React, { useState, useRef, useEffect } from 'react';
-import { ChatMessage as IChatMessage } from '../../types';
+import { ChatMessage as IChatMessage, KnowledgeItem } from '../../types';
 import { askNexus, getChatHistory } from '../../services/grokService';
 import { getUserFacingAiError } from '../../services/errorUtils';
+import { saveAIInteraction } from '../../services/interactionService';
+import { fetchKnowledgeItems } from '../../services/firestoreService';
 import { ChatHeader } from '../../components/chat/ChatHeader';
 import { ChatMessage } from '../../components/chat/ChatMessage';
 import { ChatInput } from '../../components/chat/ChatInput';
@@ -10,6 +15,7 @@ const ChatInterface: React.FC = () => {
   const [messages, setMessages] = useState<IChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeItem[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const streamingRef = useRef(false);
 
@@ -31,6 +37,7 @@ const ChatInterface: React.FC = () => {
     const fetchHistory = async () => {
       try {
         setIsLoading(true);
+        // Load chat history
         const history = await getChatHistory();
         if (history && history.length > 0) {
           const mappedHistory: IChatMessage[] = history.map((msg: any) => ({
@@ -40,8 +47,12 @@ const ChatInterface: React.FC = () => {
           }));
           setMessages(mappedHistory);
         }
+
+        // Load knowledge base for context
+        const kb = await fetchKnowledgeItems();
+        setKnowledgeBase(kb);
       } catch (error) {
-        console.error("Failed to load chat history:", error);
+        console.error("Failed to load chat history or knowledge:", error);
       } finally {
         setIsLoading(false);
       }
@@ -102,16 +113,29 @@ const ChatInterface: React.FC = () => {
     setIsLoading(true);
 
     try {
+      // Build context from Knowledge Base
+      let context = '';
+      if (knowledgeBase.length > 0) {
+        context = "Use the following context from the user's Knowledge Base if relevant to answer the query:\n\n";
+        knowledgeBase.forEach(item => {
+          context += `[${item.type.toUpperCase()}: ${item.title}]\n${item.content}\n\n`;
+        });
+      }
+
       // Get full response from API
       const history = messages.map((m) => ({
         role: m.role === 'user' ? 'user' : 'assistant',
         content: m.text,
       }));
-      const responseText = await askNexus(text, undefined, false, history as any);
+      
+      const responseText = await askNexus(text, context, false, history as any);
 
       if (!responseText || !responseText.trim()) {
         throw new Error('Empty AI response');
       }
+
+      // Save interaction to Firestore
+      await saveAIInteraction('Neural Chat', text, responseText);
 
       // Start streaming simulation
       setIsLoading(false);
@@ -135,12 +159,12 @@ const ChatInterface: React.FC = () => {
       <div className="flex-1 overflow-y-auto px-4 py-6 scroll-smooth custom-scrollbar">
         <div className="max-w-3xl mx-auto space-y-6">
           {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center min-h-[50vh] text-center opacity-50 select-none animate-in fade-in zoom-in-95 duration-500">
-              <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6 ring-1 ring-primary/20 shadow-[0_0_30px_-5px_rgba(139,92,246,0.3)]">
-                <span className="text-4xl">✨</span>
+            <div className="flex flex-col items-center justify-center min-h-[50vh] text-center select-none animate-in fade-in zoom-in-95 duration-500">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-6 border border-primary/20 subtle-glow">
+                <span className="text-3xl">✨</span>
               </div>
-              <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">Nexus Enterprise OS</h2>
-              <p className="text-sm text-gray-400 max-w-sm">
+              <h2 className="heading-lg text-text-primary mb-2">Nexus Enterprise OS</h2>
+              <p className="body-sm text-text-secondary max-w-sm">
                 Ready to accelerate your productivity. Ask me anything.
               </p>
             </div>

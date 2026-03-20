@@ -1,3 +1,6 @@
+/* eslint-disable react/no-unescaped-entities */
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
 import { motion } from 'framer-motion';

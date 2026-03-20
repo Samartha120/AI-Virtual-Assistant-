@@ -1,88 +1,54 @@
-
 import * as React from 'react';
-import { AppView } from './types';
+import { Navigate, Route, Routes } from 'react-router-dom';
+import ProtectedRoute from './components/ProtectedRoute';
 import Shell from './components/layout/Shell';
-import { useStore } from './store/useStore';
+
+import AuthPage from './features/auth/AuthPage';
 import Dashboard from './features/dashboard/Dashboard';
 import LiveAssistant from './features/dashboard/LiveAssistant';
+import ChatInterface from './features/chat/ChatInterface';
 import DocumentAnalyzer from './features/documents/DocumentAnalyzer';
 import Brainstormer from './features/brainstormer/Brainstormer';
 import TaskBoard from './features/tasks/TaskBoard';
 import KnowledgeBase from './features/knowledge/KnowledgeBase';
-import ChatInterface from './features/chat/ChatInterface';
-import SettingsPage from './features/settings/SettingsPage';
-import AuthPage from './features/auth/AuthPage';
 import WritingStudio from './features/writing/WritingStudio';
 import FocusTimer from './features/focus/FocusTimer';
 import GoalTracker from './features/goals/GoalTracker';
+import SettingsPage from './features/settings/SettingsPage';
+
 import VerifyEmailPage from './pages/auth/verify-email';
+import NotFoundPage from './pages/NotFoundPage';
 
-const App: React.FC = () => {
-  const { currentView, isAuthenticated, isVerified, isAuthLoading, initAuthListener } = useStore();
-
-  React.useEffect(() => {
-    const unsubscribe = initAuthListener();
-    return () => unsubscribe();
-  }, [initAuthListener]);
-
-  if (isAuthLoading) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center bg-background">
-        <div className="animate-pulse flex flex-col items-center">
-          <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center mb-4">
-            <span className="text-xl font-bold text-primary">N</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const renderView = () => {
-    console.log("App renderView executing. currentView is:", currentView);
-    if (currentView === AppView.SETTINGS) {
-      console.log("Rendering SettingsPage!");
-    }
-    switch (currentView) {
-      case AppView.DASHBOARD:
-        return <Dashboard />;
-      case AppView.LIVE_ASSISTANT:
-        return <LiveAssistant />;
-      case AppView.CHAT:
-        return <ChatInterface />;
-      case AppView.DOC_ANALYZER:
-        return <DocumentAnalyzer />;
-      case AppView.BRAINSTORMER:
-        return <Brainstormer />;
-      case AppView.TASKS:
-        return <TaskBoard />;
-      case AppView.KNOWLEDGE_BASE:
-        return <KnowledgeBase />;
-      case AppView.WRITING_STUDIO:
-        return <WritingStudio />;
-      case AppView.FOCUS_TIMER:
-        return <FocusTimer />;
-      case AppView.GOALS:
-        return <GoalTracker />;
-      case AppView.SETTINGS:
-        return <SettingsPage />;
-      default:
-        return <Dashboard />;
-    }
-  };
-
-  if (!isAuthenticated) {
-    return <AuthPage />;
-  }
-
-  if (!isVerified) {
-    return <VerifyEmailPage />;
-  }
-
+function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
-    <Shell>
-      {renderView()}
-    </Shell>
+    <ProtectedRoute>
+      <Shell>{children}</Shell>
+    </ProtectedRoute>
   );
-};
+}
 
-export default App;
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+      <Route path="/login" element={<AuthPage defaultMode="login" />} />
+      <Route path="/signup" element={<AuthPage defaultMode="signup" />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
+
+      <Route path="/dashboard" element={<DashboardShell><Dashboard /></DashboardShell>} />
+      <Route path="/live-assistant" element={<DashboardShell><LiveAssistant /></DashboardShell>} />
+      <Route path="/neural-chat" element={<DashboardShell><ChatInterface /></DashboardShell>} />
+      <Route path="/doc-analyzer" element={<DashboardShell><DocumentAnalyzer /></DashboardShell>} />
+      <Route path="/brainstormer" element={<DashboardShell><Brainstormer /></DashboardShell>} />
+      <Route path="/task-board" element={<DashboardShell><TaskBoard /></DashboardShell>} />
+      <Route path="/knowledge-base" element={<DashboardShell><KnowledgeBase /></DashboardShell>} />
+      <Route path="/writing-studio" element={<DashboardShell><WritingStudio /></DashboardShell>} />
+      <Route path="/focus-timer" element={<DashboardShell><FocusTimer /></DashboardShell>} />
+      <Route path="/goal-tracker" element={<DashboardShell><GoalTracker /></DashboardShell>} />
+      <Route path="/settings" element={<DashboardShell><SettingsPage /></DashboardShell>} />
+
+      <Route path="*" element={<NotFoundPage />} />
+    </Routes>
+  );
+}

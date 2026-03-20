@@ -15,6 +15,7 @@ import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { Plus, Sparkles, Loader2 } from 'lucide-react';
 import { Task } from '../../types';
 import { generateTaskAnalysis } from '../../services/grokService';
+import { saveAIInteraction } from '../../services/interactionService';
 import { storage } from '../../services/storageService';
 import { KanbanColumn } from '../../components/tasks/KanbanColumn';
 import { TaskCard } from '../../components/tasks/TaskCard';
@@ -82,6 +83,9 @@ const TaskBoard: React.FC = () => {
         const { decomposeTask } = await import('../../services/grokService');
 
         const subtasks = await decomposeTask(taskTitle);
+
+        // Save interaction to Firestore
+        saveAIInteraction('Task AI: Decompose', taskTitle, JSON.stringify(subtasks));
 
         if (subtasks.length > 0) {
           const newTasks = subtasks.map(st => ({
@@ -184,6 +188,9 @@ const TaskBoard: React.FC = () => {
       const taskStr = tasks.filter(t => t.status !== 'done').map(t => `${t.title} (${t.priority})`).join(', ');
       const response = await generateTaskAnalysis(taskStr);
       setAiAdvice(response);
+      
+      // Save interaction to Firestore
+      saveAIInteraction('Task AI: Optimize', taskStr, response);
     } catch (err) {
       console.error(err);
     } finally {

@@ -76,6 +76,8 @@ function requireGrokKey() {
 const openai = new OpenAI({
     apiKey: GROK_KEY || 'missing',
     baseURL: GROK_BASE_URL,
+    timeout: 30000, // 30 seconds timeout
+    maxRetries: 2,
 });
 
 let resolvedModel = null;
@@ -119,6 +121,7 @@ async function resolveModel() {
 
             // If the key is invalid/unauthorized, fail fast so callers get a clear 401.
             if (status === 401 || status === 403 || (status === 400 && /incorrect api key provided/i.test(message))) {
+                console.error('[grok] auth_failure during model discovery', message);
                 throw mapOpenAIError(err);
             }
 
@@ -204,9 +207,20 @@ function mapOpenAIError(err) {
 
 // Helper for generic completions
 const callGrok = async (systemPrompt, userText, historyLines = [], { signal } = {}) => {
-    requireGrokKey();
+    try {
+        requireGrokKey();
+    } catch (err) {
+        console.error('[grok] key_error', err.message);
+        throw err;
+    }
 
-    const model = await resolveModel();
+    let model;
+    try {
+        model = await resolveModel();
+    } catch (err) {
+        console.error('[grok] resolve_model_error', err.message);
+        throw err;
+    }
 
     const messages = [];
     if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
@@ -257,9 +271,20 @@ const callGrok = async (systemPrompt, userText, historyLines = [], { signal } = 
 };
 
 const streamGrok = async function* (systemPrompt, userText, historyLines = [], { signal } = {}) {
-    requireGrokKey();
+    try {
+        requireGrokKey();
+    } catch (err) {
+        console.error('[grok] stream_key_error', err.message);
+        throw err;
+    }
 
-    const model = await resolveModel();
+    let model;
+    try {
+        model = await resolveModel();
+    } catch (err) {
+        console.error('[grok] stream_resolve_model_error', err.message);
+        throw err;
+    }
 
     const messages = [];
     if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
@@ -323,7 +348,41 @@ const streamGrokResponse = async (message, history = [], { signal } = {}) => {
 // ─── Brainstorm Ideas ─────────────────────────────────────────────────────────
 const brainstormIdeas = async (topic) => {
     const prompt = `Generate 7 innovative, actionable ideas for: "${topic}".\nReturn each idea on a new line prefixed with a number (e.g. "1. Idea here").`;
-    return callGrok(SYSTEM_PROMPT, prompt);
+    try {
+        return await callGrok(SYSTEM_PROMPT, prompt);
+    } catch (err) {
+        console.error('[grok] brainstorm_error', err.message);
+        throw err;
+    }
+};
+
+const cleanJsonResponse = (text) => {
+    if (!text) return '';
+    // Remove markdown code fences
+    let cleaned = text.replace(/```json\s*/i, '').replace(/```\s*/i, '').replace(/\s*```/g, '').trim();
+    
+    // If there's still text before/after the JSON, try to find the actual JSON object/array
+    const firstBrace = cleaned.indexOf('{');
+    const firstBracket = cleaned.indexOf('[');
+    const lastBrace = cleaned.lastIndexOf('}');
+    const lastBracket = cleaned.lastIndexOf(']');
+    
+    let start = -1;
+    let end = -1;
+    
+    if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
+        start = firstBrace;
+        end = lastBrace;
+    } else if (firstBracket !== -1) {
+        start = firstBracket;
+        end = lastBracket;
+    }
+    
+    if (start !== -1 && end !== -1 && end > start) {
+        cleaned = cleaned.substring(start, end + 1);
+    }
+    
+    return cleaned;
 };
 
 // ─── Analyze Document ─────────────────────────────────────────────────────────
@@ -333,12 +392,12 @@ const analyzeDocument = async (text) => {
 - "keyPoints": Array of 4-6 critical insights (array of strings)
 - "actionItems": Array of 3-5 next steps (array of strings)
 
-IMPORTANT: Return ONLY valid JSON. No markdown, no code fences.
+IMPORTANT: Return ONLY valid JSON. No markdown, no code fences, no introductory text.
 
 Content:
 ${text.slice(0, 8000)}`;
     const result = await callGrok(SYSTEM_PROMPT, prompt);
-    return result.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+    return cleanJsonResponse(result);
 };
 
 // ─── Task Analysis ────────────────────────────────────────────────────────────
@@ -351,14 +410,60 @@ const generateTaskAnalysis = async (taskStr) => {
 const decomposeTask = async (taskTitle) => {
     const prompt = `Break down this task into 3-5 actionable subtasks. Return ONLY a JSON array where each item has "title" (string) and "priority" ("low"|"medium"|"high"). No markdown, no extra text.\n\nTask: ${taskTitle}`;
     const result = await callGrok(SYSTEM_PROMPT, prompt);
-    return result.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+    return cleanJsonResponse(result);
 };
 
-module.exports = { 
-    generateGrokResponse, 
-    streamGrokResponse,
-    brainstormIdeas, 
-    analyzeDocument, 
-    generateTaskAnalysis, 
-    decomposeTask 
+// ─── Vision Analysis ──────────────────────────────────────────────────────────
+const analyzeImage = async (base64Image, prompt = "Describe this image in detail and extract any text you see.") => {
+    try {
+        requireGrokKey();
+    } catch (err) {
+        console.error('[grok-vision] key_error', err.message);
+        throw err;
+    }
+
+    // Heuristic: Prefer grok-2-vision or llama-3.2-11b-vision
+    const model = PROVIDER === 'groq' ? 'llama-3.2-11b-vision-preview' : 'grok-2-vision-1212';
+    
+    console.info('[grok-vision] request', {
+        provider: PROVIDER,
+        model,
+        imageSize: base64Image.length
+    });
+
+    try {
+        const response = await openai.chat.completions.create({
+            model,
+            messages: [
+                {
+                    role: "user",
+                    content: [
+                        { type: "text", text: prompt },
+                        {
+                            type: "image_url",
+                            image_url: {
+                                url: `data:image/jpeg;base64,${base64Image}`,
+                            },
+                        },
+                    ],
+                },
+            ],
+            max_tokens: 1024,
+        });
+
+        return response.choices[0].message.content;
+    } catch (err) {
+        console.error('[grok-vision] error', err.message);
+        throw mapOpenAIError(err);
+    }
+};
+
+module.exports = {
+    generateGrokResponse: async (text, history) => callGrok(null, text, history),
+    streamGrokResponse: streamGrok,
+    brainstormIdeas,
+    analyzeDocument,
+    generateTaskAnalysis,
+    decomposeTask,
+    analyzeImage, // Export new vision function
 };

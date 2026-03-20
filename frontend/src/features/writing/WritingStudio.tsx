@@ -5,6 +5,7 @@ import {
     WrapText, Smile, Briefcase, Globe, AlignLeft, Expand, Loader2
 } from 'lucide-react';
 import { askNexus } from '../../services/grokService';
+import { saveAIInteraction } from '../../services/interactionService';
 
 // ─────────────────────────────── types ────────────────────────────────────────
 type Action = {
@@ -103,9 +104,13 @@ const WritingStudio: React.FC = () => {
         setActiveAction(action.id);
         setOutput('');
         try {
-            const result = await askNexus(action.prompt(original));
+            const prompt = action.prompt(original);
+            const result = await askNexus(prompt);
             setOutput(result);
-        } catch {
+
+            // Save interaction to Firestore
+            await saveAIInteraction(`Writing Studio: ${action.label}`, original, result);
+        } catch (error) {
             setOutput('❌ AI action failed. Please try again.');
         } finally {
             setIsLoading(false);
@@ -126,31 +131,31 @@ const WritingStudio: React.FC = () => {
     };
 
     return (
-        <div className="h-full flex flex-col" style={{ color: 'var(--text)' }}>
+        <div className="h-full flex flex-col bg-background">
             {/* Header */}
-            <div className="p-6 pb-4 border-b" style={{ borderColor: 'var(--border)' }}>
-                <div className="flex items-center gap-3 mb-1">
-                    <div className="w-10 h-10 rounded-xl bg-violet-500/15 flex items-center justify-center text-violet-400">
-                        <PenLine size={20} />
+            <div className="p-8 pb-6 border-b border-border">
+                <div className="flex items-center gap-4 mb-1">
+                    <div className="w-12 h-12 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-center text-primary">
+                        <PenLine size={24} />
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>AI Writing Studio</h1>
-                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Transform your text with AI-powered actions</p>
+                        <h1 className="heading-lg text-text-primary">AI Writing Studio</h1>
+                        <p className="body-sm text-text-secondary">Transform your text with AI-powered actions</p>
                     </div>
                 </div>
             </div>
 
             {/* Action Buttons Row */}
-            <div className="px-6 py-3 flex flex-wrap gap-2 border-b" style={{ borderColor: 'var(--border)' }}>
+            <div className="px-8 py-4 flex flex-wrap gap-2.5 border-b border-border bg-surface/30">
                 {ACTIONS.map((action) => (
                     <button
                         key={action.id}
                         onClick={() => runAction(action)}
                         disabled={isLoading || !original.trim()}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${action.color} disabled:opacity-40 disabled:cursor-not-allowed ${activeAction === action.id && isLoading ? 'ring-2 ring-offset-1 ring-offset-transparent ring-current' : ''}`}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-medium transition-all duration-200 ${action.color} disabled:opacity-40 disabled:cursor-not-allowed shadow-sm`}
                     >
                         {activeAction === action.id && isLoading
-                            ? <Loader2 size={13} className="animate-spin" />
+                            ? <Loader2 size={14} className="animate-spin" />
                             : action.icon}
                         {action.label}
                     </button>
@@ -160,71 +165,58 @@ const WritingStudio: React.FC = () => {
             {/* Editor Area */}
             <div className="flex-1 flex min-h-0">
                 {/* Original */}
-                <div className="flex-1 flex flex-col border-r" style={{ borderColor: 'var(--border)' }}>
-                    <div className="px-4 py-2 flex items-center justify-between text-xs" style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
-                        <span className="font-semibold uppercase tracking-wider">Your Text</span>
-                        <span>{wordCount} words · {mins} min read</span>
+                <div className="flex-1 flex flex-col border-r border-border">
+                    <div className="px-6 py-3 flex items-center justify-between border-b border-border bg-surface/20">
+                        <span className="caption font-bold uppercase tracking-widest text-text-tertiary">Your Text</span>
+                        <span className="caption text-text-tertiary">{wordCount} words · {mins} min read</span>
                     </div>
                     <textarea
                         value={original}
                         onChange={(e) => setOriginal(e.target.value)}
-                        placeholder="Start writing or paste your text here…&#10;&#10;Then click any AI action above to transform it."
-                        className="flex-1 w-full p-5 resize-none text-sm leading-relaxed focus:outline-none custom-scrollbar"
-                        style={{ background: 'var(--bg)', color: 'var(--text)' }}
+                        placeholder="Start writing or paste your text here…"
+                        className="flex-1 w-full p-8 resize-none text-sm leading-relaxed text-text-primary bg-background focus:outline-none custom-scrollbar"
                     />
                 </div>
 
                 {/* AI Output */}
                 <div className="flex-1 flex flex-col">
-                    <div className="px-4 py-2 flex items-center justify-between text-xs" style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
-                        <div className="flex items-center gap-1.5 font-semibold uppercase tracking-wider">
-                            <Sparkles size={12} className="text-violet-400" />
+                    <div className="px-6 py-3 flex items-center justify-between border-b border-border bg-surface/20">
+                        <div className="flex items-center gap-2 caption font-bold uppercase tracking-widest text-text-tertiary">
+                            <Sparkles size={14} className="text-primary" />
                             AI Output
                             {activeAction && !isLoading && (
-                                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-violet-500/15 text-violet-400 capitalize">{activeAction}</span>
+                                <span className="ml-2 px-2 py-0.5 rounded-lg text-[10px] bg-primary/5 border border-primary/10 text-primary capitalize tracking-normal">{activeAction}</span>
                             )}
                         </div>
                         {output && (
                             <div className="flex items-center gap-2">
-                                <button onClick={replace} className="flex items-center gap-1 px-2 py-1 rounded bg-violet-500/15 text-violet-400 hover:bg-violet-500/25 transition-colors">
+                                <button onClick={replace} className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-primary/10 border border-primary/10 text-primary hover:bg-primary/20 transition-all text-[10px] font-bold uppercase tracking-wider">
                                     {replaced ? <CheckCheck size={12} /> : <RefreshCw size={12} />}
                                     {replaced ? 'Replaced!' : 'Replace'}
                                 </button>
-                                <button onClick={copy} className="flex items-center gap-1 px-2 py-1 rounded bg-white/10 hover:bg-white/15 transition-colors" style={{ color: 'var(--text-muted)' }}>
+                                <button onClick={copy} className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-surface border border-border text-text-secondary hover:text-text-primary hover:border-border-strong transition-all text-[10px] font-bold uppercase tracking-wider">
                                     {copied ? <CheckCheck size={12} /> : <Copy size={12} />}
                                     {copied ? 'Copied!' : 'Copy'}
                                 </button>
                             </div>
                         )}
                     </div>
-
-                    <div className="flex-1 overflow-y-auto p-5 custom-scrollbar" style={{ background: 'var(--surface)' }}>
-                        <AnimatePresence mode="wait">
-                            {isLoading ? (
-                                <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                                    className="flex flex-col items-center justify-center h-full gap-4 text-center">
-                                    <div className="w-12 h-12 rounded-full bg-violet-500/15 flex items-center justify-center">
-                                        <Loader2 size={22} className="animate-spin text-violet-400" />
-                                    </div>
-                                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                                        AI is {ACTIONS.find(a => a.id === activeAction)?.label.toLowerCase()}ing your text…
-                                    </p>
-                                </motion.div>
-                            ) : output ? (
-                                <motion.p key="output" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-                                    className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--text)' }}>
-                                    {output}
-                                </motion.p>
-                            ) : (
-                                <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }}
-                                    className="flex flex-col items-center justify-center h-full gap-3 text-center select-none">
-                                    <Sparkles size={32} className="text-violet-400" />
-                                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                                        Select an AI action above<br />to transform your text
-                                    </p>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                    <div className="flex-1 p-8 overflow-y-auto custom-scrollbar bg-surface/10">
+                        {isLoading ? (
+                            <div className="h-full flex flex-col items-center justify-center space-y-4 animate-in fade-in duration-500">
+                                <div className="w-12 h-12 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+                                <p className="caption text-text-tertiary animate-pulse uppercase tracking-widest">Nexus is thinking...</p>
+                            </div>
+                        ) : output ? (
+                            <div className="prose prose-invert prose-sm max-w-none text-text-primary leading-relaxed animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                {output}
+                            </div>
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-center space-y-3 opacity-30">
+                                <Sparkles size={32} className="text-text-tertiary" />
+                                <p className="text-sm text-text-tertiary max-w-[200px]">Select an AI action above to see results here</p>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

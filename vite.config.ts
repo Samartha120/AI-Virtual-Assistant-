@@ -1,7 +1,11 @@
-import path from 'path';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
@@ -20,32 +24,30 @@ export default defineConfig(({ mode }) => {
     defineProcessEnv[`process.env.${key}`] = JSON.stringify(env[key] ?? '');
   }
 
+  // Existing frontend code reads NEXT_PUBLIC_API_URL.
+  // Prefer Vite's conventional VITE_API_URL, but allow NEXT_PUBLIC_API_URL too.
+  defineProcessEnv['process.env.NEXT_PUBLIC_API_URL'] = JSON.stringify(
+    env.VITE_API_URL ?? env.NEXT_PUBLIC_API_URL ?? ''
+  );
+
   return {
-  server: {
-    port: 3000,
-    strictPort: true,
-    host: '0.0.0.0',
-    proxy: {
-      '/api': {
-        target: 'http://localhost:5000',
-        changeOrigin: true,
-      }
-    }
-  },
-  define: defineProcessEnv,
-  build: {
-    outDir: path.resolve(__dirname, './backend/dist'),
-    emptyOutDir: true,
-  },
-  plugins: [
-    react(),
-    tailwindcss(),
-  ],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './frontend'),
-    }
-  }
+    server: {
+      port: 3000,
+      strictPort: false,
+      host: '0.0.0.0',
+      proxy: {
+        '/api': {
+          target: 'http://localhost:5000',
+          changeOrigin: true,
+        },
+      },
+    },
+    define: defineProcessEnv,
+    plugins: [react(), tailwindcss()],
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './frontend'),
+      },
+    },
   };
 });
-

@@ -1,11 +1,11 @@
+'use client';
+
 import { create } from 'zustand';
-import { AppView } from '../types';
 import { api } from '../services/apiClient';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { auth as firebaseAuth } from '../lib/firebaseClient';
 
 interface AppState {
-    currentView: AppView;
     isSidebarOpen: boolean;
     theme: 'dark' | 'light';
     aiModel: string;
@@ -17,7 +17,6 @@ interface AppState {
     isLoadingSettings: boolean;
     knownAccounts: any[];
     targetSwitchEmail: string | null;
-    setCurrentView: (view: AppView) => void;
     toggleSidebar: () => void;
     setTheme: (theme: 'dark' | 'light') => void;
     login: (user: any, token: string, isSignUp?: boolean) => void;
@@ -34,7 +33,6 @@ interface AppState {
 }
 
 export const useStore = create<AppState>((set, get) => ({
-    currentView: AppView.DASHBOARD,
     isSidebarOpen: true,
     theme: 'dark',
     aiModel: 'grok-2-latest',
@@ -44,7 +42,14 @@ export const useStore = create<AppState>((set, get) => ({
     isVerified: false,
     isAuthLoading: true,
     user: null,
-    knownAccounts: JSON.parse(localStorage.getItem('nexus-known-accounts') || '[]'),
+    knownAccounts: (() => {
+        if (typeof window === 'undefined') return [];
+        try {
+            return JSON.parse(window.localStorage.getItem('nexus-known-accounts') || '[]');
+        } catch {
+            return [];
+        }
+    })(),
     targetSwitchEmail: null,
     initAuthListener: () => {
         const unsubscribe = onAuthStateChanged(firebaseAuth, async (user: User | null) => {
@@ -77,7 +82,6 @@ export const useStore = create<AppState>((set, get) => ({
 
         return unsubscribe;
     },
-    setCurrentView: (view) => set({ currentView: view }),
     toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
     setTheme: (theme) => {
         set({ theme });

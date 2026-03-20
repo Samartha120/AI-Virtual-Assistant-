@@ -5,8 +5,8 @@ This workspace has been migrated to **Grok (xAI)** for all AI functionality.
 ## Structure
 
 - **Root/**: Frontend Application (React/Vite)
-  - `src/`: Frontend Source Code
-  - `index.html`, `vite.config.ts`: Frontend Config
+  - `frontend/`: Frontend Source Code
+  - `index.html`, `vite.config.ts`: Frontend entry/config
 - **backend/**: Backend API (Node.js/Express)
 
 ## Quick Start
