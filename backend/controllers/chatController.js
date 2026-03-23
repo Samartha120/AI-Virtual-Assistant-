@@ -1,4 +1,4 @@
-const { generateAIResponse } = require('../services/llmService');
+const { generateResponse } = require('../services/llmService');
 const { speechToText } = require('../services/speechService');
 const { createAiSession, getAiSessions, getSessionMessages, saveSessionMessage, saveAIInteraction } = require('../services/firebase.service');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
@@ -57,7 +57,7 @@ const chat = async (req, res) => {
             systemContext = `You are NexusAI, an elite academic and professional assistant. Provide brief, ultra-intelligent, and concise verbal responses suitable for speech synthesis.`;
         }
 
-        const aiResponseText = await generateAIResponse(message.trim(), historyForPrompt, systemContext);
+        const aiResponseText = await generateResponse(message.trim(), historyForPrompt, systemContext);
 
         // 3. Save User Message to DB
         await saveSessionMessage(userId, currentSessionId, 'user', message.trim(), inputType);

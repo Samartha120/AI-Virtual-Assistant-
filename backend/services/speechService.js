@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 const HF_API_KEY = process.env.HF_API_KEY;
-const WHISPER_API_URL = 'https://api-inference.huggingface.co/models/openai/whisper-base';
+const WHISPER_API_URL = 'https://router.huggingface.co/hf-inference/models/openai/whisper-base';
 
 /**
  * Converts audio buffer to text using Hugging Face Whisper API
