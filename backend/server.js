@@ -126,11 +126,12 @@ app.get('/api/health', async (req, res) => {
 
 // ─── Routes ───────────────────────────────────────────────────────
 // Public Grok AI routes (no auth required) — /api/chat, /api/chat/stream, /api/brainstorm, /api/analyze, /api/tasks/ai
-app.use('/api', aiLimiter, require('./routes/ai.routes'));
+// app.use('/api', aiLimiter, require('./routes/ai.routes'));
 
 // Authenticated routes
 app.use('/api/auth', authLimiter, require('./routes/auth.routes'));
-app.use('/api/ai', aiLimiter, require('./routes/chat.routes'));
+app.use('/api', aiLimiter, require('./routes/chat.routes')); // Mounts /chat, /sessions, /messages
+// app.use('/api/legacy_ai', aiLimiter, require('./routes/ai.routes')); // Preserved just in case
 app.use('/api/files', require('./routes/file.routes'));
 app.use('/api/settings', require('./routes/settings.routes'));
 app.use('/api/tasks', require('./routes/tasks.routes'));

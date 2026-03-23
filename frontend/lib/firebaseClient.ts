@@ -2,7 +2,7 @@
 'use client';
 
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
-import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { getAuth, setPersistence, browserSessionPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
@@ -30,9 +30,9 @@ export const storage = getStorage(firebaseApp);
 // Enforce session persistence: user will be logged out when the browser window/tab is closed
 // Note: Client components still SSR; guard browser-only APIs.
 if (typeof window !== 'undefined') {
-  setPersistence(auth, browserLocalPersistence)
+  setPersistence(auth, browserSessionPersistence)
     .then(() => {
-      console.log('Firebase persistence set to browserLocalPersistence');
+      console.log('Firebase persistence set to browserSessionPersistence');
     })
     .catch((error) => {
       console.error('Error setting Firebase persistence:', error);

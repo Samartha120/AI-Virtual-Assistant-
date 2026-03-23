@@ -4,7 +4,7 @@ import {
     Target, Plus, Trash2, Sparkles, ChevronDown, ChevronUp,
     Loader2, CheckCircle2, Clock, Briefcase, User, Heart, BookOpen
 } from 'lucide-react';
-import { askNexus } from '../../services/grokService';
+import { askNexus } from '../../services/aiService';
 import { storage } from '../../services/storageService';
 import {
     createGoal as createGoalRecord,

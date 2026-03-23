@@ -1,11 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     PenLine, Sparkles, Copy, RefreshCw, CheckCheck,
     WrapText, Smile, Briefcase, Globe, AlignLeft, Expand, Loader2
 } from 'lucide-react';
-import { askNexus } from '../../services/grokService';
-import { saveAIInteraction } from '../../services/interactionService';
+import { askNexus, getSessionMessages } from '../../../services/aiService';
+import { saveAIInteraction } from '../../../services/interactionService';
+import { SessionsSidebar } from '../../../components/chat/SessionsSidebar';
 
 // ─────────────────────────────── types ────────────────────────────────────────
 type Action = {
@@ -85,12 +86,43 @@ const readingTime = (text: string) => {
 
 // ─────────────────────────────── component ────────────────────────────────────
 const WritingStudio: React.FC = () => {
+    const MODULE_NAME = 'writing_studio';
     const [original, setOriginal] = useState('');
     const [output, setOutput] = useState('');
     const [activeAction, setActiveAction] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [copied, setCopied] = useState(false);
     const [replaced, setReplaced] = useState(false);
+    const [currentSessionId, setCurrentSessionId] = useState<string | undefined>(undefined);
+
+    useEffect(() => {
+        if (currentSessionId) {
+            setIsLoading(true);
+            getSessionMessages(currentSessionId).then(history => {
+                const lastAiMessage = history.filter((msg: any) => msg.role === 'assistant').pop();
+                const lastUserMessage = history.filter((msg: any) => msg.role === 'user').pop();
+                
+                if (lastAiMessage) {
+                    setOutput(lastAiMessage.content);
+                } else {
+                    setOutput('');
+                }
+
+                if (lastUserMessage) {
+                    const parts = lastUserMessage.content.split('\n\n');
+                    if (parts.length > 1) {
+                        setOriginal(parts.slice(1).join('\n\n'));
+                    } else {
+                        setOriginal(lastUserMessage.content);
+                    }
+                }
+            }).finally(() => setIsLoading(false));
+        } else {
+            setOriginal('');
+            setOutput('');
+            setActiveAction(null);
+        }
+    }, [currentSessionId]);
 
     const wordCount = useMemo(
         () => original.trim().split(/\s+/).filter(Boolean).length,
@@ -105,11 +137,16 @@ const WritingStudio: React.FC = () => {
         setOutput('');
         try {
             const prompt = action.prompt(original);
-            const result = await askNexus(prompt);
-            setOutput(result);
+            const result = await askNexus(prompt, MODULE_NAME, currentSessionId);
+            
+            if (!currentSessionId) {
+                setCurrentSessionId(result.sessionId);
+            }
+
+            setOutput(result.reply);
 
             // Save interaction to Firestore
-            await saveAIInteraction(`Writing Studio: ${action.label}`, original, result);
+            await saveAIInteraction(`Writing Studio: ${action.label}`, original, result.reply);
         } catch (error) {
             setOutput('❌ AI action failed. Please try again.');
         } finally {
@@ -131,7 +168,13 @@ const WritingStudio: React.FC = () => {
     };
 
     return (
-        <div className="h-full flex flex-col bg-background">
+        <div className="flex h-full bg-background relative overflow-hidden">
+            <SessionsSidebar 
+                moduleName={MODULE_NAME} 
+                currentSessionId={currentSessionId} 
+                onSelectSession={setCurrentSessionId} 
+            />
+            <div className="flex-1 flex flex-col min-w-0 bg-background">
             {/* Header */}
             <div className="p-8 pb-6 border-b border-border">
                 <div className="flex items-center gap-4 mb-1">
@@ -219,6 +262,7 @@ const WritingStudio: React.FC = () => {
                         )}
                     </div>
                 </div>
+            </div>
             </div>
         </div>
     );

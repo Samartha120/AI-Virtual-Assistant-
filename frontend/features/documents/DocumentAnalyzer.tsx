@@ -2,9 +2,9 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { FileText, Upload, ChevronRight, File, Loader2, Play, Paperclip } from 'lucide-react';
-import { analyzeDocument } from '../../services/grokService';
-import { saveAIInteraction } from '../../services/interactionService';
+import { useNavigate } from 'react-router-dom';
+import { FileText, ChevronRight, Loader2, Play, Paperclip, History } from 'lucide-react';
+import { askNexus } from '../../services/aiService';
 import { AnalysisResult } from '../../types';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -17,29 +17,29 @@ const DocumentAnalyzer: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [attachedFile, setAttachedFile] = useState<{ name: string, content: string, size: number } | null>(null);
+  const [currentSessionId, setCurrentSessionId] = useState<string | undefined>(undefined);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
 
   const handleAnalyze = async () => {
     const textToAnalyze = attachedFile ? attachedFile.content : content;
     if (!textToAnalyze.trim()) return;
     setIsAnalyzing(true);
     try {
-      const response = await analyzeDocument(textToAnalyze);
-      
+      const resp = await askNexus(textToAnalyze, 'doc_analyzer', currentSessionId);
+      if (!currentSessionId) setCurrentSessionId(resp.sessionId);
+
+      const response = resp.reply;
       let parsed;
       try {
         parsed = typeof response === 'string' ? JSON.parse(response) : response;
       } catch (e) {
-        // Fallback for malformed JSON but with some content
         console.warn('JSON parse failed, attempting cleanup', e);
         const cleaned = response.replace(/```json\s*/i, '').replace(/```\s*/i, '').replace(/\s*```/g, '').trim();
         parsed = JSON.parse(cleaned);
       }
 
       setResult(parsed);
-      
-      // Save interaction to Firestore (even if parse failed earlier, we use raw response)
-      await saveAIInteraction('Doc Analyzer', textToAnalyze.slice(0, 1000), typeof response === 'string' ? response : JSON.stringify(response));
     } catch (error) {
       console.error('Analysis error:', error);
       alert('Analysis failed. The AI returned an unexpected format. Please try again.');
@@ -53,14 +53,10 @@ const DocumentAnalyzer: React.FC = () => {
       const zip = new JSZip();
       const content = await zip.loadAsync(file);
       let fullText = '';
-
-      // Look for slide XML files
       const slideFiles = Object.keys(content.files).filter(name => name.startsWith('ppt/slides/slide') && name.endsWith('.xml'));
-
       for (const slideName of slideFiles) {
         const xmlContent = await content.file(slideName)?.async('string');
         if (xmlContent) {
-          // Extremely basic regex to extract text from a:t tags
           const textMatches = xmlContent.match(/<a:t>([^<]*)<\/a:t>/g);
           if (textMatches) {
             const slideText = textMatches.map(t => t.replace(/<\/?a:t>/g, '')).join(' ');
@@ -84,7 +80,6 @@ const DocumentAnalyzer: React.FC = () => {
 
     try {
       if (['txt', 'md', 'csv', 'json', 'js', 'ts', 'html', 'css'].includes(extension || '')) {
-        // Plain text files
         extractedText = await file.text();
       } else if (extension === 'docx') {
         const arrayBuffer = await file.arrayBuffer();
@@ -130,7 +125,7 @@ const DocumentAnalyzer: React.FC = () => {
         {title}
       </h3>
       <div className="space-y-2">
-        {items.map((item, i) => (
+        {(Array.isArray(items) ? items : []).map((item, i) => (
           <div key={i} className="flex gap-3 text-sm text-gray-200 p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
             <span className="text-primary font-mono select-none">{String(i + 1).padStart(2, '0')}</span>
             <span>{item}</span>
@@ -141,9 +136,11 @@ const DocumentAnalyzer: React.FC = () => {
   );
 
   return (
-    <div className="h-full flex flex-col md:flex-row gap-6 p-6 max-w-7xl mx-auto">
+    <div className="h-full flex flex-col md:flex-row gap-6 p-6 max-w-7xl mx-auto relative">
+      {/* Container spacing */}
+
       {/* Input Section */}
-      <div className="w-full md:w-1/3 flex flex-col gap-4">
+      <div className="w-full md:w-1/3 flex flex-col gap-4 mt-12 md:mt-0">
         <header>
           <h2 className="text-2xl font-bold text-white tracking-tight">Doc Analyzer</h2>
           <p className="text-sm text-gray-400 mt-1">Extract structured insights from raw text or document files.</p>
@@ -216,7 +213,7 @@ const DocumentAnalyzer: React.FC = () => {
       </div>
 
       {/* Result Section */}
-      <div className="flex-1 flex flex-col gap-4">
+      <div className="flex-1 flex flex-col gap-4 mt-12 md:mt-0">
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
@@ -227,7 +224,7 @@ const DocumentAnalyzer: React.FC = () => {
           {result && (
             <button 
               onClick={() => { setContent(''); setResult(null); setAttachedFile(null); }}
-              className="text-xs text-gray-500 hover:text-white transition-colors"
+              className="text-xs text-gray-500 hover:text-white transition-colors mr-24"
             >
               Clear Analysis
             </button>
@@ -237,7 +234,7 @@ const DocumentAnalyzer: React.FC = () => {
         <Card className="flex-1 p-6 bg-background/50 overflow-y-auto custom-scrollbar">
           {!result && !isAnalyzing && (
             <div className="h-full flex flex-col items-center justify-center text-center opacity-40 grayscale group hover:grayscale-0 transition-all duration-500">
-              <div className="w-20 h-20 rounded-[2rem] bg-white/5 flex items-center justify-center mb-6 border border-white/10 group-hover:border-primary/30 transition-colors">
+              <div className="w-20 h-20 rounded-4xl bg-white/5 flex items-center justify-center mb-6 border border-white/10 group-hover:border-primary/30 transition-colors">
                 <FileText size={40} className="text-gray-400 group-hover:text-primary transition-colors" />
               </div>
               <h3 className="text-lg font-bold text-white mb-2">Ready to Analyze</h3>

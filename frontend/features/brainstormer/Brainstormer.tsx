@@ -2,36 +2,31 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Lightbulb, Zap, Sparkles, Copy, RefreshCw } from 'lucide-react';
-import { brainstormIdeas } from '../../services/grokService';
+import { useNavigate } from 'react-router-dom';
+import { Lightbulb, Zap, Sparkles, Copy, RefreshCw, History } from 'lucide-react';
+import { askNexus } from '../../services/aiService';
 import { getUserFacingAiError } from '../../services/errorUtils';
-import { saveAIInteraction } from '../../services/interactionService';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
 
 const Brainstormer: React.FC = () => {
   const [topic, setTopic] = useState('');
   const [ideas, setIdeas] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [currentSessionId, setCurrentSessionId] = useState<string | undefined>(undefined);
+  const navigate = useNavigate();
 
   const handleBrainstorm = async () => {
     if (!topic.trim()) return;
     setIsGenerating(true);
     setIdeas([]); // Clear previous
     try {
-      const response = await brainstormIdeas(topic);
-      // Clean up response if it has numbered list formatting, though service might handle it.
-      // Assuming response is a raw string, let's split by newlines if it looks like a list
-      // or just trust the display.
-      // The service returns a string. Let's try to parse it into an array if possible, 
-      // or just split by newlines for better UI.
+      const response = await askNexus(topic, 'brainstormer', currentSessionId);
+      
+      if (!currentSessionId) setCurrentSessionId(response.sessionId);
 
-      const ideasList = response.split('\n').filter(line => line.trim().length > 0);
+      const ideasList = response.reply.split('\n').filter(line => line.trim().length > 0);
       setIdeas(ideasList);
-
-      // Save interaction to Firestore
-      saveAIInteraction('Brainstormer', topic, response);
     } catch (error) {
       console.error(error);
       alert(getUserFacingAiError(error));
@@ -42,12 +37,13 @@ const Brainstormer: React.FC = () => {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    // Could add toast here
   };
 
   return (
-    <div className="h-full flex flex-col p-8 max-w-5xl mx-auto space-y-12">
-      <header className="text-center space-y-4">
+    <div className="h-full flex flex-col p-8 max-w-5xl mx-auto space-y-12 relative">
+      {/* Header handled natively */}
+
+      <header className="text-center space-y-4 pt-4">
         <div className="inline-flex items-center justify-center p-4 rounded-full bg-amber-500/5 text-amber-500 mb-2 border border-amber-500/10">
           <Lightbulb size={28} />
         </div>
@@ -114,13 +110,13 @@ const Brainstormer: React.FC = () => {
 
         {!ideas.length && !isGenerating && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center mt-12 opacity-50">
-            <div className="p-4 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 cursor-pointer transition-colors" onClick={() => setTopic("Startup ideas for 2026")}>
+            <div className="p-4 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 cursor-pointer transition-colors" onClick={() => { setTopic("Startup ideas for 2026"); }}>
               <p className="text-sm text-gray-300">"Startup ideas for 2026"</p>
             </div>
-            <div className="p-4 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 cursor-pointer transition-colors" onClick={() => setTopic("Blog post titles about AI")}>
+            <div className="p-4 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 cursor-pointer transition-colors" onClick={() => { setTopic("Blog post titles about AI"); }}>
               <p className="text-sm text-gray-300">"Blog titles about AI"</p>
             </div>
-            <div className="p-4 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 cursor-pointer transition-colors" onClick={() => setTopic("Youtube channel names for gaming")}>
+            <div className="p-4 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 cursor-pointer transition-colors" onClick={() => { setTopic("Youtube channel names for gaming"); }}>
               <p className="text-sm text-gray-300">"Gaming channel names"</p>
             </div>
           </div>

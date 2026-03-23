@@ -7,15 +7,15 @@ export function getUserFacingAiError(err: unknown): string {
 
   if (err instanceof ApiError) {
     switch (err.code) {
-      case 'GROK_KEY_SUSPECT':
-        return 'AI backend is misconfigured (wrong GROK_API_KEY). Please update the key on the backend and redeploy.';
-      case 'GROK_KEY_MISSING':
-        return 'AI backend is missing GROK_API_KEY. Please set it on the backend and redeploy.';
-      case 'GROK_AUTH_INVALID':
-        return 'AI backend key is invalid/unauthorized. Please update GROK_API_KEY on the backend.';
-      case 'GROK_RATE_LIMIT':
+      case 'HF_KEY_SUSPECT':
+        return 'AI backend is misconfigured (wrong HF_API_KEY). Please update the key on the backend and redeploy.';
+      case 'HF_KEY_MISSING':
+        return 'AI backend is missing HF_API_KEY. Please set it on the backend and redeploy.';
+      case 'HF_AUTH_INVALID':
+        return 'AI backend key is invalid/unauthorized. Please update HF_API_KEY on the backend.';
+      case 'HF_RATE_LIMIT':
         return 'AI rate limit reached. Please wait a moment and try again.';
-      case 'GROK_UPSTREAM':
+      case 'HF_UPSTREAM':
         return 'AI provider is temporarily unavailable. Please try again.';
       default:
         return err.message || fallback;

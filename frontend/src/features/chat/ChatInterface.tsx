@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage as IChatMessage } from '../../types';
-import { askNexus } from '../../services/grokService';
+import { askNexus } from '../../services/aiService';
 import { getUserFacingAiError } from '../../services/errorUtils';
 import { saveAIInteraction } from '../../services/interactionService';
 import { ChatHeader } from '../../components/chat/ChatHeader';
@@ -69,7 +69,9 @@ const ChatInterface: React.FC = () => {
 
     try {
       // Get full response from API
-      const responseText = await askNexus(text);
+      // @ts-ignore
+      const responseData : any = await askNexus(text, 'Neural Chat');
+      const responseText = typeof responseData === 'string' ? responseData : responseData?.reply || '';
 
       // Save interaction to Firestore
       saveAIInteraction('Neural Chat', text, responseText);
@@ -90,7 +92,7 @@ const ChatInterface: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#0f1115] relative overflow-hidden">
+    <div className="flex flex-col h-full bg-background relative overflow-hidden">
       <ChatHeader />
 
       <div className="flex-1 overflow-y-auto px-4 py-6 scroll-smooth custom-scrollbar">

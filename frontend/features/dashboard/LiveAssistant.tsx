@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useRef, useState } from 'react';
-import { askNexus } from '../../services/grokService';
+import { askNexus } from '../../services/aiService';
 import { getUserFacingAiError } from '../../services/errorUtils';
 import { saveAIInteraction } from '../../services/interactionService';
 
@@ -45,9 +45,11 @@ const LiveAssistant: React.FC = () => {
 
         let reply = '';
         try {
-          reply = await askNexus(
-            `You are NexusAI, an elite academic and professional assistant. Provide brief, ultra-intelligent, and concise verbal responses.\n\nUser (spoken): ${userText}`
+          const resp = await askNexus(
+            `You are NexusAI, an elite academic and professional assistant. Provide brief, ultra-intelligent, and concise verbal responses.\n\nUser (spoken): ${userText}`,
+            'Live Assistant'
           );
+          reply = resp.reply;
         } catch (err) {
           console.error('LiveAssistant Grok error:', err);
           reply = getUserFacingAiError(err);
@@ -165,7 +167,7 @@ const LiveAssistant: React.FC = () => {
           <div className="inline-flex items-center px-3 py-1 rounded-full bg-violet-600/10 border border-violet-500/20 text-violet-400 text-[10px] font-bold uppercase tracking-widest mb-4">
              Voice Neural Link v1.0
           </div>
-          <h2 className="text-5xl font-extrabold mb-4 bg-clip-text text-transparent bg-gradient-to-br from-white to-white/60 tracking-tight">
+          <h2 className="text-5xl font-extrabold mb-4 bg-clip-text text-transparent bg-linear-to-br from-white to-white/60 tracking-tight">
             Conversational Intelligence
           </h2>
           <p className="text-gray-500 text-lg">
@@ -179,7 +181,7 @@ const LiveAssistant: React.FC = () => {
               ? 'bg-violet-600/20 shadow-[0_0_80px_rgba(139,92,246,0.2)] scale-110' 
               : 'bg-white/5 border border-white/5'
           }`}>
-            <div className={`w-40 h-40 rounded-full bg-gradient-to-tr from-violet-600 to-indigo-600 flex items-center justify-center shadow-2xl ${isActive ? 'animate-pulse' : ''}`}>
+            <div className={`w-40 h-40 rounded-full bg-linear-to-tr from-violet-600 to-indigo-600 flex items-center justify-center shadow-2xl ${isActive ? 'animate-pulse' : ''}`}>
               <svg className={`w-20 h-20 text-white transition-all ${isActive ? 'scale-110' : 'scale-100 opacity-60'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
               </svg>
@@ -198,7 +200,7 @@ const LiveAssistant: React.FC = () => {
           <button
             onClick={isActive ? stopSession : startSession}
             disabled={isConnecting}
-            className={`group relative px-12 py-5 rounded-[2rem] font-bold text-xl transition-all duration-500 overflow-hidden ${
+            className={`group relative px-12 py-5 rounded-4xl font-bold text-xl transition-all duration-500 overflow-hidden ${
               isActive 
                 ? 'bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white' 
                 : 'bg-violet-600 text-white shadow-2xl shadow-violet-600/30 hover:bg-violet-700'

@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { FileText, Upload, ChevronRight, File, Loader2, Play, Paperclip } from 'lucide-react';
-import { analyzeDocument } from '../../services/grokService';
+import { analyzeDocument, getSessionMessages, getAiSessions, askNexus } from '../../services/aiService';
 import { saveAIInteraction } from '../../services/interactionService';
 import { AnalysisResult } from '../../types';
 import { Card } from '../../components/ui/Card';

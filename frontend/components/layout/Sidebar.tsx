@@ -31,13 +31,13 @@ interface NavItem {
 
 const menuItems: NavItem[] = [
   { path: '/dashboard',      label: 'Command Center',  icon: LayoutDashboard },
-  { path: '/live-assistant', label: 'Live Assistant',  icon: Mic },
-  { path: '/neural-chat',    label: 'Neural Chat',     icon: MessageSquare },
-  { path: '/doc-analyzer',   label: 'Doc Analyzer',    icon: FileText },
-  { path: '/brainstormer',   label: 'Brainstormer',    icon: Lightbulb },
+  { path: '/chat/live',      label: 'Live Assistant',  icon: Mic },
+  { path: '/chat/neural',    label: 'Neural Chat',     icon: MessageSquare },
+  { path: '/chat/doc',       label: 'Doc Analyzer',    icon: FileText },
+  { path: '/chat/brainstorm',label: 'Brainstormer',    icon: Lightbulb },
   { path: '/task-board',     label: 'Task Board',      icon: CheckSquare },
   { path: '/knowledge-base', label: 'Knowledge Base',  icon: Database },
-  { path: '/writing-studio', label: 'Writing Studio',  icon: PenLine },
+  { path: '/chat/write',     label: 'Writing Studio',  icon: PenLine },
   { path: '/focus-timer',    label: 'Focus Timer',     icon: Timer },
   { path: '/goal-tracker',   label: 'Goal Tracker',    icon: Target },
 ];

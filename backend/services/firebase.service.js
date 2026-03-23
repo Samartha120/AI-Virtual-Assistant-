@@ -7,7 +7,49 @@ const COL = {
   TASKS: 'tasks',
   KNOWLEDGE: 'knowledge_base',
   SETTINGS: 'settings',
+  AI_INTERACTIONS: 'ai_interactions',
 };
+
+function truncateText(value, maxChars) {
+  if (value === null || value === undefined) return '';
+  const s = typeof value === 'string' ? value : JSON.stringify(value);
+  if (!maxChars || s.length <= maxChars) return s;
+  return `${s.slice(0, maxChars)}…`;
+}
+
+/**
+ * Logs AI module outputs in Firestore.
+ * Uses Admin SDK (bypasses client security rules), so it can persist even when
+ * client-side logging fails.
+ */
+async function saveAIInteraction({
+  userId = null,
+  module,
+  prompt,
+  response,
+  endpoint = null,
+  meta = null,
+}) {
+  if (!adminDb) {
+    console.warn('[Firestore] adminDb not initialized. Skipping AI interaction log.');
+    return null;
+  }
+
+  const safeModule = String(module || 'AI');
+  const promptText = truncateText(prompt, 20000);
+  const responseText = truncateText(response, 20000);
+
+  return adminDb.collection(COL.AI_INTERACTIONS).add({
+    userId: userId ? String(userId) : null,
+    module: safeModule,
+    prompt: promptText,
+    response: responseText,
+    endpoint: endpoint ? String(endpoint) : null,
+    meta: meta && typeof meta === 'object' ? meta : null,
+    createdAt: FieldValue.serverTimestamp(),
+    source: 'backend',
+  });
+}
 
 function toIsoDate(value) {
   if (!value) return null;
@@ -25,8 +67,104 @@ async function getCount(queryRef) {
   return snap.size;
 }
 
-// ─── Chat Messages ──────────────────────────────────────────────
+// ─── AI Sessions & Messages ──────────────────────────────────────
 
+async function createAiSession(userId, module, title = 'New Conversation') {
+  if (!userId || !module) throw new Error('userId and module are required to create a session');
+  const userRef = adminDb.collection('users').doc(String(userId));
+  const sessionRef = userRef.collection('ai_sessions').doc(); // Auto-ID
+
+  const sessionData = {
+    module: String(module),
+    title: String(title),
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+
+  await sessionRef.set(sessionData);
+  const saved = await sessionRef.get();
+  return { id: saved.id, ...saved.data() };
+}
+
+async function getAiSessions(userId, moduleName = null) {
+  if (!userId) return [];
+  
+  let query = adminDb
+    .collection('users')
+    .doc(String(userId))
+    .collection('ai_sessions');
+
+  if (moduleName) {
+    query = query.where('module', '==', String(moduleName));
+  }
+
+  query = query.orderBy('updatedAt', 'desc').limit(50);
+  
+  const snap = await query.get();
+  return snap.docs.map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt,
+      updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt,
+    };
+  });
+}
+
+async function getSessionMessages(userId, sessionId, limit = 50) {
+  if (!userId || !sessionId) return [];
+  
+  const snap = await adminDb
+    .collection('users')
+    .doc(String(userId))
+    .collection('ai_sessions')
+    .doc(String(sessionId))
+    .collection('messages')
+    .orderBy('createdAt', 'asc')
+    .limit(limit)
+    .get();
+
+  return snap.docs.map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt,
+    };
+  });
+}
+
+async function saveSessionMessage(userId, sessionId, role, content, inputType = 'text') {
+  if (!userId || !sessionId) throw new Error('userId and sessionId are required');
+  
+  const sessionRef = adminDb
+    .collection('users')
+    .doc(String(userId))
+    .collection('ai_sessions')
+    .doc(String(sessionId));
+
+  const messagesRef = sessionRef.collection('messages');
+  
+  const messageData = {
+    role,
+    content,
+    inputType,
+    createdAt: FieldValue.serverTimestamp(),
+  };
+
+  const docRef = await messagesRef.add(messageData);
+  
+  // Also update session's updatedAt timestamp
+  await sessionRef.update({
+    updatedAt: FieldValue.serverTimestamp()
+  });
+
+  const saved = await docRef.get();
+  return { id: docRef.id, ...saved.data() };
+}
+
+// ─── Legacy Chat Messages (Deprecated, but keep for fallback) ───
 const saveChatMessage = async (userId, role, content) => {
   const docRef = await adminDb.collection(COL.CHAT).add({
     user_id: userId,
@@ -200,6 +338,11 @@ const deleteKnowledgeItem = async (itemId, userId) => {
 module.exports = {
   COL,
   getCount,
+  saveAIInteraction,
+  createAiSession,
+  getAiSessions,
+  getSessionMessages,
+  saveSessionMessage,
   saveChatMessage,
   getChatHistory,
   clearChatHistory,

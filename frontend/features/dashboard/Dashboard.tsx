@@ -143,7 +143,7 @@ const Dashboard: React.FC = () => {
         <div className="lg:col-span-3 space-y-6">
           {/* Quick Actions */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <motion.div variants={item} onClick={() => navigate('/neural-chat')} className="cursor-pointer">
+            <motion.div variants={item} onClick={() => navigate('/history/neural_chat')} className="cursor-pointer">
               <Card hoverEffect className="h-full flex flex-col justify-between min-h-[160px] bg-linear-to-br from-surface to-background">
                 <div className="p-2 w-fit rounded-lg bg-primary/20 text-primary mb-4">
                   <MessageSquare size={24} />
@@ -155,7 +155,7 @@ const Dashboard: React.FC = () => {
               </Card>
             </motion.div>
 
-            <motion.div variants={item} onClick={() => navigate('/doc-analyzer')} className="cursor-pointer">
+            <motion.div variants={item} onClick={() => navigate('/history/doc_analyzer')} className="cursor-pointer">
               <Card hoverEffect className="h-full flex flex-col justify-between min-h-[160px] bg-linear-to-br from-surface to-background">
                 <div className="p-2 w-fit rounded-lg bg-blue-500/20 text-blue-400 mb-4">
                   <FileText size={24} />
@@ -167,7 +167,7 @@ const Dashboard: React.FC = () => {
               </Card>
             </motion.div>
 
-            <motion.div variants={item} onClick={() => navigate('/brainstormer')} className="cursor-pointer">
+            <motion.div variants={item} onClick={() => navigate('/history/brainstormer')} className="cursor-pointer">
               <Card hoverEffect className="h-full flex flex-col justify-between min-h-[160px] bg-linear-to-br from-surface to-background">
                 <div className="p-2 w-fit rounded-lg bg-amber-500/20 text-amber-400 mb-4">
                   <Zap size={24} />

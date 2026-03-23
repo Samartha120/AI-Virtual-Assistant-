@@ -9,6 +9,7 @@ import LiveAssistant from './features/dashboard/LiveAssistant';
 import ChatInterface from './features/chat/ChatInterface';
 import DocumentAnalyzer from './features/documents/DocumentAnalyzer';
 import Brainstormer from './features/brainstormer/Brainstormer';
+import HistoryViewer from './features/history/HistoryViewer';
 import TaskBoard from './features/tasks/TaskBoard';
 import KnowledgeBase from './features/knowledge/KnowledgeBase';
 import WritingStudio from './features/writing/WritingStudio';
@@ -37,13 +38,14 @@ export default function App() {
       <Route path="/verify-email" element={<VerifyEmailPage />} />
 
       <Route path="/dashboard" element={<DashboardShell><Dashboard /></DashboardShell>} />
-      <Route path="/live-assistant" element={<DashboardShell><LiveAssistant /></DashboardShell>} />
-      <Route path="/neural-chat" element={<DashboardShell><ChatInterface /></DashboardShell>} />
-      <Route path="/doc-analyzer" element={<DashboardShell><DocumentAnalyzer /></DashboardShell>} />
-      <Route path="/brainstormer" element={<DashboardShell><Brainstormer /></DashboardShell>} />
+      <Route path="/chat/live" element={<DashboardShell><LiveAssistant /></DashboardShell>} />
+      <Route path="/chat/neural" element={<DashboardShell><ChatInterface /></DashboardShell>} />
+      <Route path="/chat/doc" element={<DashboardShell><DocumentAnalyzer /></DashboardShell>} />
+      <Route path="/chat/brainstorm" element={<DashboardShell><Brainstormer /></DashboardShell>} />
+      <Route path="/history/:moduleName" element={<DashboardShell><HistoryViewer /></DashboardShell>} />
       <Route path="/task-board" element={<DashboardShell><TaskBoard /></DashboardShell>} />
       <Route path="/knowledge-base" element={<DashboardShell><KnowledgeBase /></DashboardShell>} />
-      <Route path="/writing-studio" element={<DashboardShell><WritingStudio /></DashboardShell>} />
+      <Route path="/chat/write" element={<DashboardShell><WritingStudio /></DashboardShell>} />
       <Route path="/focus-timer" element={<DashboardShell><FocusTimer /></DashboardShell>} />
       <Route path="/goal-tracker" element={<DashboardShell><GoalTracker /></DashboardShell>} />
       <Route path="/settings" element={<DashboardShell><SettingsPage /></DashboardShell>} />

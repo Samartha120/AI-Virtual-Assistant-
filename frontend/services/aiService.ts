@@ -4,8 +4,7 @@
  * Frontend AI client for NexusAI.
  *
  * IMPORTANT:
- * - Grok is NEVER called directly from the browser.
- * - All requests proxy through the backend (`/api/*`) where `GROK_API_KEY` lives.
+ *   Frontend → /api/* (same-origin backend) → Hugging Face API
  * - Exports keep legacy signatures so existing modules work unchanged.
  */
 
@@ -17,15 +16,33 @@ import { api, API_BASE_URL } from './apiClient';
 
 export const askNexus = async (
   prompt: string,
+  module: string,
+  sessionId?: string,
   context?: string,
-  _useSearch: boolean = false,
-  history?: Array<{ role: 'user' | 'assistant'; content: string }>
-): Promise<string> => {
-  const response = await api.post<{ success: boolean; reply?: string; data?: { reply: string } }>(
+): Promise<{ reply: string; sessionId: string }> => {
+  const response = await api.post<{ success: boolean; reply: string; sessionId: string }>(
     '/api/chat',
-    { message: prompt, context, history: history ?? [] }
+    { message: prompt, module, sessionId, context }
   );
-  return response.reply || response.data?.reply || '';
+  return { reply: response.reply, sessionId: response.sessionId };
+};
+
+export const getAiSessions = async (module?: string): Promise<any[]> => {
+  try {
+    const response = await api.get<{ data: any[] }>(`/api/sessions?module=${encodeURIComponent(module)}`);
+    return response.data || [];
+  } catch {
+    return [];
+  }
+};
+
+export const getSessionMessages = async (sessionId: string): Promise<any[]> => {
+  try {
+    const response = await api.get<{ data: any[] }>(`/api/messages/${encodeURIComponent(sessionId)}`);
+    return response.data || [];
+  } catch {
+    return [];
+  }
 };
 
 /**
@@ -90,22 +107,11 @@ export async function* askNexusStream(
   }
 }
 
-export const getChatHistory = async (): Promise<any[]> => {
-  try {
-    const response = await api.get<{ data: any[] }>('/api/ai/history');
-    return response.data || [];
-  } catch {
-    return [];
-  }
-};
-
-export const clearChatHistory = async (): Promise<void> => {
-  try {
-    await api.delete('/api/ai/history');
-  } catch {
-    // ignore
-  }
-};
+// ─────────────────────────────────────────────────────────────────────────────
+// Legacy Chat endpoints mappings (deprecated, map functions for safety if used elsewhere)
+// ─────────────────────────────────────────────────────────────────────────────
+export const getChatHistory = async (): Promise<any[]> => [];
+export const clearChatHistory = async (): Promise<void> => {};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Brainstormer

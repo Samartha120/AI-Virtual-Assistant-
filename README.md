@@ -1,6 +1,6 @@
 # Nexus AI Project
 
-This workspace has been migrated to **Grok (xAI)** for all AI functionality.
+This workspace has been migrated to **Hugging Face** for all AI functionality.
 
 ## Structure
 
@@ -9,7 +9,31 @@ This workspace has been migrated to **Grok (xAI)** for all AI functionality.
   - `index.html`, `vite.config.ts`: Frontend entry/config
 - **backend/**: Backend API (Node.js/Express)
 
-## Quick Start
+## Getting Started
+
+### Run the app (frontend + backend)
+
+This repo uses Vite for the frontend and an Express server for `/api/*`.
+
+1) Install dependencies:
+
+```bash
+npm install
+```
+
+2) Start **both** servers:
+
+```bash
+npm run dev
+```
+
+- Frontend (Vite): http://localhost:3000
+- Backend (Express): http://localhost:5000
+
+Useful backend checks:
+
+- `GET http://localhost:5000/api/ai-status` (confirms HuggingFace key detection)
+- `GET http://localhost:5000/api/health` (confirms Firebase Admin + Firestore connectivity)
 
 ### Frontend
 1. Open terminal in **Root** directory.
@@ -26,7 +50,7 @@ This workspace has been migrated to **Grok (xAI)** for all AI functionality.
 ### Backend env (required)
 
 - Copy [backend/.env.example](backend/.env.example) → `backend/.env`
-- Set `GROK_API_KEY` (server-side only)
+- Set `HF_API_KEY` (server-side only)
 
 ### Frontend env (optional)
 

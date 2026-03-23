@@ -15,6 +15,7 @@ import { Button } from '../../components/ui/Button';
 import { useStore } from '../../store/useStore';
 import { AppView } from '../../types';
 import { storage } from '../../services/storageService';
+import { getAiSessions } from '../../../services/aiService';
 
 const Dashboard: React.FC = () => {
   const { setCurrentView } = useStore();
@@ -22,19 +23,31 @@ const Dashboard: React.FC = () => {
     tasksPending: 0,
     tasksCompleted: 0,
     knowledgeDocs: 0,
-    ideasGenerated: 0 // Placeholder or generic
+    aiSessions: 0 
   });
 
   useEffect(() => {
-    const tasks = storage.getTasks() || [];
-    const knowledge = storage.getKnowledge() || [];
+    const fetchStats = async () => {
+      const tasks = storage.getTasks() || [];
+      const knowledge = storage.getKnowledge() || [];
+      let sessionsCount = 0;
+      
+      try {
+        const sessions = await getAiSessions();
+        sessionsCount = sessions.length;
+      } catch (err) {
+        console.error('Failed to parse active AI sessions count for Dashboard', err);
+      }
 
-    setStats({
-      tasksPending: tasks.filter(t => t.status !== 'done').length,
-      tasksCompleted: tasks.filter(t => t.status === 'done').length,
-      knowledgeDocs: knowledge.length,
-      ideasGenerated: 12 // Hardcoded for now or fetch from somewhere if we saved them
-    });
+      setStats({
+        tasksPending: tasks.filter((t: any) => t.status !== 'done').length,
+        tasksCompleted: tasks.filter((t: any) => t.status === 'done').length,
+        knowledgeDocs: knowledge.length,
+        aiSessions: sessionsCount
+      });
+    };
+    
+    fetchStats();
   }, []);
 
   const container = {
@@ -121,8 +134,8 @@ const Dashboard: React.FC = () => {
 
           <Card className="p-5 flex items-center justify-between group hover:border-amber-500/30 transition-colors">
             <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">AI Model</p>
-              <h3 className="text-2xl font-bold text-white group-hover:text-amber-400 transition-colors">Nexus 2.0</h3>
+              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">AI Sessions</p>
+              <h3 className="text-2xl font-bold text-white group-hover:text-amber-400 transition-colors">{stats.aiSessions} Active</h3>
             </div>
             <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">
               <Brain size={20} />

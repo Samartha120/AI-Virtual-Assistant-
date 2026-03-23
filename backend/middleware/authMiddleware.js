@@ -2,6 +2,14 @@ const { adminAuth } = require('../config/firebaseAdmin');
 
 const authenticateUser = async (req, res, next) => {
     try {
+        if (!adminAuth) {
+            return res.status(503).json({
+                success: false,
+                message: 'Firebase Admin is not initialized on the server.',
+                code: 'FIREBASE_ADMIN_NOT_INITIALIZED',
+            });
+        }
+
         const authHeader = req.headers.authorization;
 
         if (!authHeader) {

@@ -1,10 +1,10 @@
 /**
- * grokService.ts
+ * aiService.ts
  * ─────────────────────────────────────────────────────────────────────────────
- * ⚠️  REFACTORED — Grok is NO LONGER called directly from the browser.
+ * ⚠️  REFACTORED — AI is no longer called directly from the browser.
  *
  * All AI calls proxy through the secure backend:
- *   Frontend → /api/* (same-origin backend) → Grok API
+ *   Frontend → /api/* (same-origin backend) → Hugging Face API
  *
  * Exports keep the SAME signatures as before so callers (ChatInterface,
  * Brainstormer, DocumentAnalyzer, TaskBoard) need ZERO changes.
@@ -23,7 +23,7 @@ export const askNexus = async (
   _context?: string,
   _useSearch: boolean = false
 ): Promise<string> => {
-  // Uses the PUBLIC /api/chat endpoint (no auth required, Grok key on backend)
+  // Uses the secured /api/chat endpoint
   const response = await api.post<{ success: boolean; reply?: string; data?: { reply: string } }>('/api/chat', { message: prompt });
   // Support both flat { reply } and nested { data: { reply } } response shapes
   return response.reply || response.data?.reply || "";

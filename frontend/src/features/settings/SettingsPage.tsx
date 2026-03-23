@@ -207,8 +207,7 @@ const SettingsPage: React.FC = () => {
                                         <h3 className="text-sm font-medium text-gray-400">Default Model</h3>
                                         <div className="space-y-3">
                                             {[
-                                                { id: 'grok-2-latest', name: 'Grok 2 Latest', desc: 'Most capable model by xAI.' },
-                                                { id: 'grok-beta', name: 'Grok Beta', desc: 'Fastest for general queries.' },
+                                                { id: 'qwen-2.5-instruct', name: 'Qwen 2.5 Instruct 7B', desc: 'Powerful open-source LLM via Hugging Face.' },
                                             ].map(model => (
                                                 <div
                                                     key={model.id}

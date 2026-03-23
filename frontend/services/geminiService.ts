@@ -15,4 +15,4 @@ export {
   getChatHistory,
   clearChatHistory,
   askNexusStream,
-} from './grokService';
+} from './aiService';

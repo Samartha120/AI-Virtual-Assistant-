@@ -2,10 +2,11 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { History } from 'lucide-react';
 import { ChatMessage as IChatMessage, KnowledgeItem } from '../../types';
-import { askNexus, getChatHistory } from '../../services/grokService';
+import { askNexus } from '../../services/aiService';
 import { getUserFacingAiError } from '../../services/errorUtils';
-import { saveAIInteraction } from '../../services/interactionService';
 import { fetchKnowledgeItems } from '../../services/firestoreService';
 import { ChatHeader } from '../../components/chat/ChatHeader';
 import { ChatMessage } from '../../components/chat/ChatMessage';
@@ -16,8 +17,10 @@ const ChatInterface: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeItem[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string | undefined>(undefined);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const streamingRef = useRef(false);
+  const navigate = useNavigate();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -33,50 +36,30 @@ const ChatInterface: React.FC = () => {
     };
   }, []);
 
+  // Load knowledge base ONLY
   useEffect(() => {
-    const fetchHistory = async () => {
+    const fetchKb = async () => {
       try {
-        setIsLoading(true);
-        // Load chat history
-        const history = await getChatHistory();
-        if (history && history.length > 0) {
-          const mappedHistory: IChatMessage[] = history.map((msg: any) => ({
-            role: msg.role === 'assistant' ? 'model' : 'user',
-            text: msg.content,
-            timestamp: msg.created_at ? new Date(msg.created_at).getTime() : Date.now()
-          }));
-          setMessages(mappedHistory);
-        }
-
-        // Load knowledge base for context
         const kb = await fetchKnowledgeItems();
         setKnowledgeBase(kb);
       } catch (error) {
-        console.error("Failed to load chat history or knowledge:", error);
-      } finally {
-        setIsLoading(false);
+        console.error("Failed to load knowledge:", error);
       }
     };
-    fetchHistory();
+    fetchKb();
   }, []);
 
   const simulateStreaming = async (fullText: string) => {
     streamingRef.current = true;
     setIsStreaming(true);
-    const aiMsg: IChatMessage = {
-      role: 'model',
-      text: '',
-      timestamp: Date.now()
-    };
-
+    const aiMsg: IChatMessage = { role: 'model', text: '', timestamp: Date.now() };
     setMessages(prev => [...prev, aiMsg]);
 
     const chunkSize = 5;
     let currentText = '';
 
     for (let i = 0; i < fullText.length; i += chunkSize) {
-      if (!streamingRef.current) break; // Safety break
-
+      if (!streamingRef.current) break;
       const chunk = fullText.slice(i, i + chunkSize);
       currentText += chunk;
 
@@ -88,8 +71,7 @@ const ChatInterface: React.FC = () => {
         }
         return newArr;
       });
-
-      await new Promise(r => setTimeout(r, 15)); // Typing speed
+      await new Promise(r => setTimeout(r, 15));
     }
 
     streamingRef.current = false;
@@ -99,21 +81,14 @@ const ChatInterface: React.FC = () => {
   const handleSend = async (text: string) => {
     if (!text.trim() || isLoading) return;
 
-    // Stop any in-progress streaming before sending a new message
     streamingRef.current = false;
     setIsStreaming(false);
 
-    // Add User Message
-    const userMsg: IChatMessage = {
-      role: 'user',
-      text: text,
-      timestamp: Date.now()
-    };
+    const userMsg: IChatMessage = { role: 'user', text: text, timestamp: Date.now() };
     setMessages(prev => [...prev, userMsg]);
     setIsLoading(true);
 
     try {
-      // Build context from Knowledge Base
       let context = '';
       if (knowledgeBase.length > 0) {
         context = "Use the following context from the user's Knowledge Base if relevant to answer the query:\n\n";
@@ -122,24 +97,14 @@ const ChatInterface: React.FC = () => {
         });
       }
 
-      // Get full response from API
-      const history = messages.map((m) => ({
-        role: m.role === 'user' ? 'user' : 'assistant',
-        content: m.text,
-      }));
+      const response = await askNexus(text, 'neural_chat', currentSessionId, context);
       
-      const responseText = await askNexus(text, context, false, history as any);
-
-      if (!responseText || !responseText.trim()) {
-        throw new Error('Empty AI response');
+      if (!currentSessionId) {
+        setCurrentSessionId(response.sessionId);
       }
 
-      // Save interaction to Firestore
-      await saveAIInteraction('Neural Chat', text, responseText);
-
-      // Start streaming simulation
       setIsLoading(false);
-      await simulateStreaming(responseText);
+      await simulateStreaming(response.reply);
 
     } catch (error) {
       console.error("Chat Error:", error);
@@ -154,7 +119,11 @@ const ChatInterface: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full bg-background relative overflow-hidden">
-      <ChatHeader />
+      {/* No history button per user spec */}
+
+      <div className="relative">
+        <ChatHeader />
+      </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-6 scroll-smooth custom-scrollbar">
         <div className="max-w-3xl mx-auto space-y-6">

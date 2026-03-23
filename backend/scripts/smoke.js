@@ -8,7 +8,7 @@
 //
 // Exits:
 //   0 = OK
-//   2 = GROK_API_KEY not set (ai-status keySet false)
+//   2 = HF_API_KEY not set (ai-status keySet false)
 //   1 = other failure
 
 const BASE_URL = (process.env.BASE_URL || 'http://localhost:5000').replace(/\/$/, '');
@@ -147,15 +147,15 @@ async function main() {
   const status = await httpJson('/api/ai-status', { method: 'GET' });
   console.log('ai-status:', status);
 
-  if (!status?.keySet) {
-    console.error('GROK_API_KEY is not set on backend. Set it in backend/.env and restart the server.');
-    process.exit(2);
-  }
-
-  if (status?.keyType === 'google') {
-    console.error('GROK_API_KEY looks like a Google/Firebase key (AIza...). Set an xAI/Grok key or a Groq key and restart/redeploy.');
-    process.exit(2);
-  }
+    if (!status?.keySet) {
+      console.error('HF_API_KEY is not set on backend. Set it in backend/.env and restart the server.');
+      process.exit(2);
+    }
+    
+    if (status?.keyType === 'google_suspicious') {
+      console.error('HF_API_KEY looks like a Google/Firebase key (AIza...). Set a Hugging Face key and restart/redeploy.');
+      process.exit(3);
+    }
 
   // Protected endpoints should return 401 without auth (not 500)
   await expectStatus('/api/ai/history', 401, { method: 'GET' });
@@ -231,7 +231,7 @@ main().catch((err) => {
   if (err?.bodyText && !err?.bodyJson) console.error('bodyText:', err.bodyText);
 
   if (err?.bodyJson?.code === 'GROK_AUTH_INVALID' || err?.status === 401 || err?.status === 403) {
-    console.error('Hint: GROK_API_KEY is set but invalid/unauthorized. Get a valid key from https://console.x.ai and restart the backend.');
+    console.error('Hint: HF_API_KEY is set but invalid/unauthorized. Get a valid key from HuggingFace and restart the backend.');
     process.exitCode = 3;
     return;
   }

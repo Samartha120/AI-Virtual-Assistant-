@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Lightbulb, Zap, Sparkles, Copy, RefreshCw } from 'lucide-react';
-import { brainstormIdeas } from '../../services/grokService';
+import { brainstormIdeas } from '../../services/aiService';
 import { getUserFacingAiError } from '../../services/errorUtils';
 import { saveAIInteraction } from '../../services/interactionService';
 import { Card } from '../../components/ui/Card';

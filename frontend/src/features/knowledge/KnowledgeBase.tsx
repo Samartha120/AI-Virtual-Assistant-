@@ -8,7 +8,7 @@ import {
   createKnowledgeItem,
   deleteKnowledgeItem,
 } from '../../services/firestoreService';
-import { analyzeImage } from '../../services/grokService';
+import { analyzeImage } from '../../services/aiService';
 import { saveAIInteraction } from '../../services/interactionService';
 import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
