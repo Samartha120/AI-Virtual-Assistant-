@@ -20,11 +20,11 @@ export const askNexus = async (
   sessionId?: string,
   context?: string,
 ): Promise<{ reply: string; sessionId: string }> => {
-  const response = await api.post<{ success: boolean; reply: string; sessionId: string }>(
+  const response = await api.post<{ success: boolean; data: { reply: string; sessionId: string } }>(
     '/api/chat',
     { message: prompt, module, sessionId, context }
   );
-  return { reply: response.reply, sessionId: response.sessionId };
+  return { reply: response.data?.reply || '', sessionId: response.data?.sessionId || '' };
 };
 
 export const getAiSessions = async (module?: string): Promise<any[]> => {
