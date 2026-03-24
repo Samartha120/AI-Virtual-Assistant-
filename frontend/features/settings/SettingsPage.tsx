@@ -23,6 +23,7 @@ import {
     Users
 } from 'lucide-react';
 import { NeuralAvatar } from '../../components/ui/NeuralAvatar';
+import { logSystemEvent } from '../../services/interactionService';
 
 const SettingsPage: React.FC = () => {
     console.log("SettingsPage component mounting/rendering");
@@ -46,7 +47,12 @@ const SettingsPage: React.FC = () => {
         fetchSettings();
     }, [fetchSettings]);
 
+    useEffect(() => {
+        logSystemEvent({ type: 'module', action: 'OPEN_SETTINGS', module: 'settings' });
+    }, []);
+
     const handleSave = async () => {
+        logSystemEvent({ type: 'api', action: 'SETTINGS_SAVED', module: 'settings' });
         setIsSaving(true);
         try {
             await saveSettings({

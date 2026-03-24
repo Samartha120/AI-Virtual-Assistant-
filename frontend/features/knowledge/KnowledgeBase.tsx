@@ -9,7 +9,7 @@ import {
   deleteKnowledgeItem,
 } from '../../services/firestoreService';
 import { analyzeImage } from '../../services/aiService';
-import { saveAIInteraction } from '../../services/interactionService';
+import { saveAIInteraction, logSystemEvent } from '../../services/interactionService';
 import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
 
@@ -35,6 +35,10 @@ const KnowledgeBase: React.FC = () => {
       }
     };
     load();
+  }, []);
+
+  useEffect(() => {
+    logSystemEvent({ type: 'module', action: 'OPEN_KNOWLEDGE_BASE', module: 'knowledge_base' });
   }, []);
 
   const handleAdd = async () => {

@@ -16,9 +16,12 @@ import WritingStudio from './features/writing/WritingStudio';
 import FocusTimer from './features/focus/FocusTimer';
 import GoalTracker from './features/goals/GoalTracker';
 import SettingsPage from './features/settings/SettingsPage';
+import SystemLogsPage from './features/systemLogs/SystemLogsPage';
 
 import VerifyEmailPage from './pages/auth/verify-email';
 import NotFoundPage from './pages/NotFoundPage';
+
+import { useAuditTrailNavigation, useAuditTrailTabClose } from './services/auditTrail';
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
@@ -29,6 +32,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  useAuditTrailNavigation();
+  useAuditTrailTabClose();
+
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -49,6 +55,7 @@ export default function App() {
       <Route path="/focus-timer" element={<DashboardShell><FocusTimer /></DashboardShell>} />
       <Route path="/goal-tracker" element={<DashboardShell><GoalTracker /></DashboardShell>} />
       <Route path="/settings" element={<DashboardShell><SettingsPage /></DashboardShell>} />
+      <Route path="/system-logs" element={<DashboardShell><SystemLogsPage /></DashboardShell>} />
 
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

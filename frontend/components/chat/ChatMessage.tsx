@@ -8,9 +8,11 @@ interface ChatMessageProps {
     role: 'user' | 'model';
     content: string;
     isStreaming?: boolean;
+    notice?: string | null;
+    provider?: string | null;
 }
 
-export const ChatMessage: React.FC<ChatMessageProps> = ({ role, content, isStreaming }) => {
+export const ChatMessage: React.FC<ChatMessageProps> = ({ role, content, isStreaming, notice }) => {
     const isUser = role === 'user';
 
     return (
@@ -33,6 +35,11 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ role, content, isStrea
                 "flex-1 space-y-2 overflow-hidden",
                 isUser ? "text-right" : "text-left"
             )}>
+                {!isUser && notice ? (
+                    <div className="text-xs text-text-tertiary">
+                        {notice}
+                    </div>
+                ) : null}
                 <div className={cn(
                     "inline-block rounded-2xl px-4 py-2.5 text-sm leading-relaxed max-w-[85%]",
                     isUser

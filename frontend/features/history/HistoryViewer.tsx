@@ -73,7 +73,9 @@ const HistoryViewer: React.FC = () => {
            const mappedHistory: IChatMessage[] = history.map((msg: any) => ({
              role: msg.role === 'assistant' ? 'model' : 'user',
              text: msg.content,
-             timestamp: msg.createdAt ? new Date(msg.createdAt).getTime() : Date.now()
+             timestamp: msg.createdAt ? new Date(msg.createdAt).getTime() : Date.now(),
+             provider: msg.provider ?? undefined,
+             notice: msg.notice ?? undefined,
            }));
            setMessages(mappedHistory);
         } else {
@@ -145,9 +147,15 @@ const HistoryViewer: React.FC = () => {
   };
 
   // --- Interaction Execution ---
-  const simulateStreaming = async (fullText: string) => {
+  const simulateStreaming = async (fullText: string, meta?: { notice?: string | null; provider?: string | null }) => {
     streamingRef.current = true;
-    const aiMsg: IChatMessage = { role: 'model', text: '', timestamp: Date.now() };
+    const aiMsg: IChatMessage = {
+      role: 'model',
+      text: '',
+      timestamp: Date.now(),
+      notice: meta?.notice ?? undefined,
+      provider: meta?.provider ?? undefined,
+    };
     setMessages(prev => [...prev, aiMsg]);
 
     const chunkSize = 5;
@@ -197,9 +205,15 @@ const HistoryViewer: React.FC = () => {
 
       // Raw json structural parsing bypasses streaming, Neural Chat uses streaming
       if (activeModule === 'doc_analyzer') {
-        setMessages(prev => [...prev, { role: 'model', text: typeof response.reply === 'string' ? response.reply : JSON.stringify(response.reply), timestamp: Date.now() }]);
+        setMessages(prev => [...prev, {
+          role: 'model',
+          text: typeof response.reply === 'string' ? response.reply : JSON.stringify(response.reply),
+          timestamp: Date.now(),
+          notice: response.notice ?? undefined,
+          provider: response.provider ?? undefined,
+        }]);
       } else {
-        await simulateStreaming(response.reply);
+        await simulateStreaming(response.reply, { notice: response.notice ?? null, provider: response.provider ?? null });
       }
     } catch (error) {
       console.error(error);
@@ -285,6 +299,8 @@ const HistoryViewer: React.FC = () => {
                     key={idx} 
                     role={msg.role} 
                     content={msg.text} 
+                    notice={msg.notice}
+                    provider={msg.provider}
                     isStreaming={isGenerating && idx === messages.length - 1 && msg.role === 'model'}
                   />
                 );
@@ -296,10 +312,10 @@ const HistoryViewer: React.FC = () => {
                 const cleaned = msg.text.replace(/```json\s*/i, '').replace(/```\s*/i, '').replace(/\s*```/g, '').trim();
                 parsed = JSON.parse(cleaned);
               } catch (e) {
-                return <ChatMessage key={idx} role="model" content={msg.text} />;
+                return <ChatMessage key={idx} role="model" content={msg.text} notice={msg.notice} provider={msg.provider} />;
               }
 
-              if (!parsed) return <ChatMessage key={idx} role="model" content={msg.text} />;
+              if (!parsed) return <ChatMessage key={idx} role="model" content={msg.text} notice={msg.notice} provider={msg.provider} />;
 
               // Unified Custom Formatter for document analysis output
               return (

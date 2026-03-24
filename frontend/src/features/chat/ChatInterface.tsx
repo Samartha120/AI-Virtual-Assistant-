@@ -21,12 +21,14 @@ const ChatInterface: React.FC = () => {
     scrollToBottom();
   }, [messages, isStreaming]);
 
-  const simulateStreaming = async (fullText: string) => {
+  const simulateStreaming = async (fullText: string, meta?: { notice?: string | null; provider?: string | null }) => {
     setIsStreaming(true);
     const aiMsg: IChatMessage = {
       role: 'model',
       text: '',
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      notice: meta?.notice ?? undefined,
+      provider: meta?.provider ?? undefined,
     };
 
     setMessages(prev => [...prev, aiMsg]);
@@ -70,15 +72,17 @@ const ChatInterface: React.FC = () => {
     try {
       // Get full response from API
       // @ts-ignore
-      const responseData : any = await askNexus(text, 'Neural Chat');
+      const responseData: any = await askNexus(text, 'Neural Chat');
       const responseText = typeof responseData === 'string' ? responseData : responseData?.reply || '';
+      const notice = typeof responseData === 'string' ? null : (responseData?.notice ?? null);
+      const provider = typeof responseData === 'string' ? null : (responseData?.provider ?? null);
 
       // Save interaction to Firestore
       saveAIInteraction('Neural Chat', text, responseText);
 
       // Start streaming simulation
       setIsLoading(false);
-      await simulateStreaming(responseText);
+      await simulateStreaming(responseText, { notice, provider });
 
     } catch (error) {
       console.error("Chat Error:", error);
@@ -114,6 +118,8 @@ const ChatInterface: React.FC = () => {
               key={idx}
               role={msg.role}
               content={msg.text}
+              notice={msg.notice}
+              provider={msg.provider}
               isStreaming={isStreaming && idx === messages.length - 1 && msg.role === 'model'}
             />
           ))}

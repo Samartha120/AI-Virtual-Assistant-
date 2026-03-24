@@ -18,7 +18,7 @@ import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { Plus, Sparkles, Loader2 } from 'lucide-react';
 import { Task } from '../../types';
 import { generateTaskAnalysis } from '../../services/aiService';
-import { saveAIInteraction } from '../../services/interactionService';
+import { saveAIInteraction, logSystemEvent } from '../../services/interactionService';
 import {
   fetchTasks,
   createTask as createTaskDoc,
@@ -243,6 +243,10 @@ const TaskBoard: React.FC = () => {
       setAnalyzing(false);
     }
   };
+
+  useEffect(() => {
+    logSystemEvent({ type: 'module', action: 'OPEN_TASK_BOARD', module: 'task_board' });
+  }, []);
 
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden">

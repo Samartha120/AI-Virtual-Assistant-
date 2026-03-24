@@ -5,7 +5,7 @@ import {
     WrapText, Smile, Briefcase, Globe, AlignLeft, Expand, Loader2
 } from 'lucide-react';
 import { askNexus, getSessionMessages } from '../../../services/aiService';
-import { saveAIInteraction } from '../../../services/interactionService';
+import { saveAIInteraction, logSystemEvent } from '../../../services/interactionService';
 import { SessionsSidebar } from '../../../components/chat/SessionsSidebar';
 
 // ─────────────────────────────── types ────────────────────────────────────────
@@ -87,6 +87,11 @@ const readingTime = (text: string) => {
 // ─────────────────────────────── component ────────────────────────────────────
 const WritingStudio: React.FC = () => {
     const MODULE_NAME = 'writing_studio';
+
+    useEffect(() => {
+        logSystemEvent({ type: 'module', action: 'OPEN_WRITING_STUDIO', module: MODULE_NAME });
+    }, []);
+
     const [original, setOriginal] = useState('');
     const [output, setOutput] = useState('');
     const [activeAction, setActiveAction] = useState<string | null>(null);
@@ -132,6 +137,13 @@ const WritingStudio: React.FC = () => {
 
     const runAction = async (action: Action) => {
         if (!original.trim()) return;
+
+        logSystemEvent({
+            type: 'module',
+            action: 'WRITING_ACTION_CLICK',
+            module: MODULE_NAME,
+        });
+
         setIsLoading(true);
         setActiveAction(action.id);
         setOutput('');
@@ -257,7 +269,7 @@ const WritingStudio: React.FC = () => {
                         ) : (
                             <div className="h-full flex flex-col items-center justify-center text-center space-y-3 opacity-30">
                                 <Sparkles size={32} className="text-text-tertiary" />
-                                <p className="text-sm text-text-tertiary max-w-[200px]">Select an AI action above to see results here</p>
+                                <p className="text-sm text-text-tertiary max-w-50">Select an AI action above to see results here</p>
                             </div>
                         )}
                     </div>

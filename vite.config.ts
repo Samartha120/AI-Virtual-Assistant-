@@ -8,7 +8,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
+  // Vite only loads env files from the current working directory by default.
+  // This repo keeps the Vite entry at the root, but some users place vars in `frontend/.env`.
+  // Merge both so either location works.
+  const envFromRoot = loadEnv(mode, process.cwd(), '');
+  const envFromFrontend = loadEnv(mode, path.resolve(process.cwd(), 'frontend'), '');
+  // Root env wins so `.env.local` at the repo root can override.
+  const env = { ...envFromFrontend, ...envFromRoot };
 
   const firebaseEnvKeys = [
     'NEXT_PUBLIC_FIREBASE_API_KEY',
@@ -33,11 +39,11 @@ export default defineConfig(({ mode }) => {
   return {
     server: {
       port: 3000,
-      strictPort: false,
+      strictPort: true,
       host: '0.0.0.0',
       proxy: {
         '/api': {
-          target: 'http://localhost:5000',
+          target: 'http://localhost:5001',
           changeOrigin: true,
         },
       },

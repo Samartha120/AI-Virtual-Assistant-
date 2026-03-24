@@ -4,8 +4,13 @@ import React, { useCallback, useRef, useState } from 'react';
 import { askNexus } from '../../services/aiService';
 import { getUserFacingAiError } from '../../services/errorUtils';
 import { saveAIInteraction } from '../../services/interactionService';
+import { logSystemEvent } from '../../services/interactionService';
 
 const LiveAssistant: React.FC = () => {
+  React.useEffect(() => {
+    logSystemEvent({ type: 'module', action: 'OPEN_LIVE_ASSISTANT', module: 'live_assistant' });
+  }, []);
+
   const [isActive, setIsActive] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [transcripts, setTranscripts] = useState<string[]>([]);
@@ -44,17 +49,22 @@ const LiveAssistant: React.FC = () => {
         pushLine(`You: ${userText}`);
 
         let reply = '';
+        let notice: string | null = null;
         try {
           const resp = await askNexus(
             `You are NexusAI, an elite academic and professional assistant. Provide brief, ultra-intelligent, and concise verbal responses.\n\nUser (spoken): ${userText}`,
             'Live Assistant'
           );
           reply = resp.reply;
+          notice = resp.notice ?? null;
         } catch (err) {
           console.error('LiveAssistant Grok error:', err);
           reply = getUserFacingAiError(err);
         }
 
+        if (notice) {
+          pushLine(`System: ${notice}`);
+        }
         pushLine(`Nexus: ${reply}`);
         speak(reply);
 
@@ -67,6 +77,7 @@ const LiveAssistant: React.FC = () => {
   }, [pushLine, speak]);
 
   const stopSession = useCallback(async () => {
+    logSystemEvent({ type: 'module', action: 'LIVE_ASSISTANT_STOP', module: 'live_assistant' });
     stoppedRef.current = true;
     queueRef.current = [];
     processingRef.current = false;
@@ -89,6 +100,7 @@ const LiveAssistant: React.FC = () => {
   }, []);
 
   const startSession = async () => {
+    logSystemEvent({ type: 'module', action: 'LIVE_ASSISTANT_START', module: 'live_assistant' });
     try {
       setIsConnecting(true);
       stoppedRef.current = false;
@@ -213,19 +225,25 @@ const LiveAssistant: React.FC = () => {
             <div className="w-full glass border border-white/10 rounded-[2.5rem] p-10 space-y-4 shadow-inner">
               <div className="flex items-center justify-center space-x-3 text-violet-400 mb-4">
                 <div className="flex space-x-1">
-                   <div className="w-1 h-3 bg-violet-400 rounded-full animate-bounce" style={{animationDelay: '0s'}}></div>
-                   <div className="w-1 h-5 bg-violet-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                   <div className="w-1 h-2 bg-violet-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                   <div className="w-1 h-6 bg-violet-400 rounded-full animate-bounce" style={{animationDelay: '0.3s'}}></div>
+                  <div className="w-1 h-3 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
+                  <div className="w-1 h-5 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+                  <div className="w-1 h-2 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                  <div className="w-1 h-6 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }} />
                 </div>
                 <span className="text-xs font-bold uppercase tracking-[0.3em] ml-2">Uplink Stable</span>
               </div>
-              <div className="space-y-3 min-h-[120px] flex flex-col justify-end">
+
+              <div className="space-y-3 min-h-30 flex flex-col justify-end">
                 {transcripts.length === 0 ? (
                   <p className="text-gray-500 italic text-sm">"Summarize my recent research entries..."</p>
                 ) : (
                   transcripts.map((t, i) => (
-                    <p key={i} className={`text-sm animate-fade-in ${t.startsWith('Nexus:') ? 'text-violet-400 font-medium' : 'text-gray-400'}`}>{t}</p>
+                    <p
+                      key={i}
+                      className={`text-sm animate-fade-in ${t.startsWith('Nexus:') ? 'text-violet-400 font-medium' : 'text-gray-400'}`}
+                    >
+                      {t}
+                    </p>
                   ))
                 )}
               </div>

@@ -1,5 +1,6 @@
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../lib/firebaseClient';
+import { api } from '../src/services/apiClient';
 
 /**
  * Saves an AI interaction to Firestore in the 'ai_interactions' collection.
@@ -29,5 +30,29 @@ export async function saveAIInteraction(module: string, prompt: string, response
   } catch (err) {
     console.error(`[Firestore Error] saveAIInteraction failed for ${module}:`, err);
     throw err;
+  }
+}
+
+export type SystemLogType = 'auth' | 'api' | 'module' | 'ai';
+
+export async function logSystemEvent(event: {
+  type: SystemLogType;
+  action: string;
+  module?: string;
+  provider?: string;
+  description?: string;
+  errorCode?: string;
+  errorMessage?: string;
+}) {
+  // Fire-and-forget: do not block UI.
+  try {
+    const payload = {
+      ...event,
+      clientTimestamp: Date.now(),
+    };
+
+    api.post('/system-logs', payload).catch(() => undefined);
+  } catch {
+    // ignore
   }
 }

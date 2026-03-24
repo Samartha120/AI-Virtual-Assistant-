@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -n web,api -c cyan,magenta \"vite\" \"npm --prefix ./backend run dev\"",
+    "postinstall": "npm --prefix ./backend install",
+    "dev": "node ./scripts/kill-dev-ports.cjs && concurrently -k --kill-others-on-fail -n web,api -c cyan,magenta \"vite --strictPort\" \"npm --prefix ./backend run dev\"",
     "dev:web": "vite",
     "dev:api": "npm --prefix ./backend run dev",
     "build": "vite build",

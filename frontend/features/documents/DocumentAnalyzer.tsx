@@ -11,6 +11,7 @@ import { Button } from '../../components/ui/Button';
 import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
+import { logSystemEvent } from '../../services/interactionService';
 
 const DocumentAnalyzer: React.FC = () => {
   const [content, setContent] = useState('');
@@ -20,6 +21,10 @@ const DocumentAnalyzer: React.FC = () => {
   const [currentSessionId, setCurrentSessionId] = useState<string | undefined>(undefined);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+
+  React.useEffect(() => {
+    logSystemEvent({ type: 'module', action: 'OPEN_DOC_ANALYZER', module: 'doc_analyzer' });
+  }, []);
 
   const handleAnalyze = async () => {
     const textToAnalyze = attachedFile ? attachedFile.content : content;

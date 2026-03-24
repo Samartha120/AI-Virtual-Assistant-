@@ -5,8 +5,9 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 
-// Load environment variables FIRST
-dotenv.config();
+// Load environment variables FIRST (always from backend/.env)
+// This prevents issues when starting `server.js` from a different working directory.
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 
@@ -137,6 +138,7 @@ app.use('/api/settings', require('./routes/settings.routes'));
 app.use('/api/tasks', require('./routes/tasks.routes'));
 app.use('/api/knowledge', require('./routes/knowledge.routes'));
 app.use('/api/dashboard', require('./routes/dashboard.routes'));
+app.use('/api', require('./routes/systemLogs.routes')); // /api/system-logs
 
 // ─── Health Check ─────────────────────────────────────────────────
 app.get('/', (req, res) => {
@@ -200,4 +202,14 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ NexusAI Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
     console.log(`📡 API Base: http://localhost:${PORT}`);
+
+    // LLM configuration visibility (safe: no secrets printed)
+    console.log('[LLM_CONFIG]', {
+        hfBaseUrl: process.env.HF_BASE_URL || 'https://router.huggingface.co/v1',
+        hfModel: process.env.HF_MODEL || 'Qwen/Qwen2.5-7B-Instruct',
+        ollamaBaseUrl: process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434',
+        ollamaPrimary: process.env.OLLAMA_MODEL_PRIMARY || 'qwen2:1.5b',
+        ollamaFallback: process.env.OLLAMA_MODEL_FALLBACK || 'llama3',
+        llmDebug: process.env.LLM_DEBUG || '(default)',
+    });
 });

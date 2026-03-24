@@ -1,4 +1,5 @@
-const { getUserTasks, createTask, updateTask, deleteTask } = require('../services/firebase.service');
+const { getUserTasks, createTask, updateTask, deleteTask, saveAIInteraction } = require('../services/firebase.service');
+const { generateResponse } = require('../services/llmService');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
 
 const getTasks = async (req, res) => {
@@ -69,5 +70,80 @@ module.exports = {
     getTasks,
     addTask,
     editTask,
-    removeTask
+    removeTask,
+    taskAi
 };
+
+async function taskAi(req, res) {
+    try {
+        const userId = req.user.id;
+        const { action, tasks, taskTitle } = req.body || {};
+
+        if (action === 'analyze') {
+            if (!tasks || typeof tasks !== 'string' || !tasks.trim()) {
+                return errorResponse(res, 400, 'tasks required');
+            }
+
+            const systemContext =
+                'You are a Project Manager AI. Provide concise, actionable optimization advice for the provided task list. ' +
+                'Return plain text (no JSON).';
+
+            console.log('Functionality: Task AI (optimize)');
+
+            const llm = await generateResponse(tasks.trim(), [], systemContext);
+            const advice = llm?.content || '';
+
+            saveAIInteraction({
+                userId,
+                module: 'Task AI: Optimize',
+                prompt: tasks.trim(),
+                response: advice,
+                provider: llm?.provider || null,
+                notice: llm?.notice || null,
+                endpoint: '/api/tasks/ai',
+                meta: { action: 'analyze', provider: llm?.provider || null, notice: llm?.notice || null },
+            }).catch((e) => console.warn('[Firestore] saveAIInteraction failed:', e?.message || e));
+
+            return res.json({ success: true, advice });
+        }
+
+        if (action === 'decompose') {
+            if (!taskTitle || typeof taskTitle !== 'string' || !taskTitle.trim()) {
+                return errorResponse(res, 400, 'taskTitle required');
+            }
+
+            const systemContext =
+                'You are a Project Manager AI. Decompose the given task into a JSON array of objects with exactly: ' +
+                '"title" (string) and "priority" ("low"|"medium"|"high"). Return ONLY valid JSON.';
+
+            console.log('Functionality: Task AI (decompose)');
+
+            const llm = await generateResponse(taskTitle.trim(), [], systemContext);
+            const raw = llm?.content || '';
+            let subtasks;
+            try {
+                subtasks = JSON.parse(raw);
+            } catch {
+                return res.status(500).json({ success: false, error: 'Malformed subtasks JSON', raw });
+            }
+
+            saveAIInteraction({
+                userId,
+                module: 'Task AI: Decompose',
+                prompt: taskTitle.trim(),
+                response: subtasks,
+                provider: llm?.provider || null,
+                notice: llm?.notice || null,
+                endpoint: '/api/tasks/ai',
+                meta: { action: 'decompose', provider: llm?.provider || null, notice: llm?.notice || null },
+            }).catch((e) => console.warn('[Firestore] saveAIInteraction failed:', e?.message || e));
+
+            return res.json({ success: true, subtasks });
+        }
+
+        return res.status(400).json({ success: false, error: 'action must be "analyze" or "decompose"' });
+    } catch (err) {
+        console.error('Task AI Error:', err);
+        return errorResponse(res, 500, 'Task AI failed', err.message);
+    }
+}

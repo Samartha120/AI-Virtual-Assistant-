@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { api } from '../services/apiClient';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { auth as firebaseAuth } from '../lib/firebaseClient';
+import { logSystemEvent } from '../services/interactionService';
 
 interface AppState {
     isSidebarOpen: boolean;
@@ -52,6 +53,13 @@ export const useStore = create<AppState>((set, get) => ({
     })(),
     targetSwitchEmail: null,
     initAuthListener: () => {
+        if (!firebaseAuth) {
+            // Frontend env is missing or Firebase failed to init.
+            // Don't crash the whole UI; allow /login to render a setup hint.
+            set({ isAuthenticated: false, isVerified: false, isAuthLoading: false, user: null });
+            return () => undefined;
+        }
+
         const unsubscribe = onAuthStateChanged(firebaseAuth, async (user: User | null) => {
             if (!user) {
                 localStorage.removeItem('firebase-id-token');
@@ -123,8 +131,13 @@ export const useStore = create<AppState>((set, get) => ({
         set({ isVerified: verified });
     },
     logout: () => {
+        // Fire-and-forget audit log
+        logSystemEvent({ type: 'auth', action: 'USER_LOGOUT' });
+
         localStorage.removeItem('firebase-id-token');
-        signOut(firebaseAuth).catch(() => undefined);
+        if (firebaseAuth) {
+            signOut(firebaseAuth).catch(() => undefined);
+        }
         set({ isAuthenticated: false, isVerified: false, user: null });
     },
     setAiModel: (aiModel) => set({ aiModel }),

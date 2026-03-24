@@ -40,6 +40,7 @@ const menuItems: NavItem[] = [
   { path: '/chat/write',     label: 'Writing Studio',  icon: PenLine },
   { path: '/focus-timer',    label: 'Focus Timer',     icon: Timer },
   { path: '/goal-tracker',   label: 'Goal Tracker',    icon: Target },
+  { path: '/system-logs',    label: 'System Logs',     icon: LayoutDashboard },
 ];
 
 const Sidebar: React.FC = () => {

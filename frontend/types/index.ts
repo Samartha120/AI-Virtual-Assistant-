@@ -52,4 +52,6 @@ export interface ChatMessage {
   text: string;
   timestamp: number;
   sources?: GroundingSource[];
+  provider?: string;
+  notice?: string;
 }

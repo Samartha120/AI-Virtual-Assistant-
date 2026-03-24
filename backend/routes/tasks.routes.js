@@ -5,6 +5,9 @@ const authenticateUser = require('../middleware/authMiddleware');
 
 router.use(authenticateUser);
 
+// AI helper endpoints (used by TaskBoard) — /api/tasks/ai
+router.post('/ai', tasksController.taskAi);
+
 router.get('/', tasksController.getTasks);
 router.post('/', tasksController.addTask);
 router.put('/:id', tasksController.editTask);

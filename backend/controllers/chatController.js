@@ -1,12 +1,49 @@
 const { generateResponse } = require('../services/llmService');
 const { speechToText } = require('../services/speechService');
-const { createAiSession, getAiSessions, getSessionMessages, saveSessionMessage, saveAIInteraction } = require('../services/firebase.service');
+const { getAiSessions, getSessionMessages, persistChatTurn } = require('../services/firebase.service');
 const { successResponse, errorResponse } = require('../utils/responseHandler');
+const { logEvent } = require('../utils/logService');
+
+function formatFunctionalityName(module) {
+    const m = String(module || '').trim();
+    if (!m) return 'Unknown';
+    const key = m.toLowerCase();
+    if (key === 'neural_chat') return 'Neural Chat';
+    if (key === 'brainstormer') return 'Brainstormer';
+    if (key === 'doc_analyzer') return 'Document Analyzer';
+    if (key === 'writing_studio') return 'Writing Studio';
+    if (key === 'task_board') return 'Task Board';
+    if (key === 'live_assistant') return 'Live Assistant';
+    return m;
+}
+
+function buildSessionTitle(module, message) {
+    const raw = typeof message === 'string' ? message.trim() : '';
+    const snippet = raw.length > 60 ? `${raw.slice(0, 60)}...` : raw;
+    const m = String(module || '').toLowerCase();
+
+    if (m === 'brainstormer') return `Brainstorm — ${snippet || 'New ideas'}`;
+    if (m === 'doc_analyzer') return `Doc Analyzer — ${snippet || 'New analysis'}`;
+    if (m === 'writing_studio') return `Writing Studio — ${snippet || 'New draft'}`;
+    if (m === 'neural_chat') return `Neural Chat — ${snippet || 'New chat'}`;
+    if (m === 'task_board') return `Task Board — ${snippet || 'New task'}`;
+    if (m === 'live_assistant') return `Live Assistant — ${snippet || 'New request'}`;
+    return `Conversation — ${snippet || 'New'}`;
+}
 
 const chat = async (req, res) => {
     try {
         let { message, module, sessionId, type } = req.body;
         const userId = req.user.id;
+
+        // MODULE event (best-effort; do not block)
+        logEvent(userId, {
+            type: 'module',
+            action: `OPEN_${String(module || '').toUpperCase()}`,
+            module,
+            route: '/api/chat',
+            metadata: req.session?.metadata,
+        });
 
         // Default to text if not specified
         const inputType = type === 'voice' ? 'voice' : 'text';
@@ -31,19 +68,17 @@ const chat = async (req, res) => {
             return errorResponse(res, 400, 'Module is required');
         }
 
-        let currentSessionId = sessionId;
-        if (!currentSessionId) {
-            // Create a new session, name it by trimming message
-            const title = message.trim().substring(0, 40) + '...';
-            const newSession = await createAiSession(userId, module, title);
-            currentSessionId = newSession.id;
-        }
-
-        // Fetch recent chat history from DB for this session
-        const dbHistory = await getSessionMessages(userId, currentSessionId, 20);
+        // Fetch recent chat history from DB only when continuing an existing session.
+        // For brand-new sessions we intentionally avoid creating a session until we have
+        // a valid assistant reply to persist (prevents empty “hi…” sessions).
+        const currentSessionId = sessionId ? String(sessionId) : null;
+        const dbHistory = currentSessionId ? await getSessionMessages(userId, currentSessionId, 20) : [];
         
         // Format history for HF prompt
         const historyForPrompt = dbHistory.map(msg => ({ role: msg.role, content: msg.content }));
+
+        // Terminal visibility: which functionality/module is invoking the LLM
+        console.log(`Functionality: ${formatFunctionalityName(module)}`);
 
         // 2. Generate AI Response
         let systemContext = `You are an AI assistant for the Nexus AI application, currently operating in the ${module} module.`;
@@ -57,29 +92,62 @@ const chat = async (req, res) => {
             systemContext = `You are NexusAI, an elite academic and professional assistant. Provide brief, ultra-intelligent, and concise verbal responses suitable for speech synthesis.`;
         }
 
-        const aiResponseText = await generateResponse(message.trim(), historyForPrompt, systemContext);
+        const llm = await generateResponse(message.trim(), historyForPrompt, systemContext);
+        const aiResponseText = llm?.content;
+        const provider = llm?.provider;
+        const notice = llm?.notice;
 
-        // 3. Save User Message to DB
-        await saveSessionMessage(userId, currentSessionId, 'user', message.trim(), inputType);
+        // AI event
+        logEvent(userId, {
+            type: 'ai',
+            action: 'AI_RESPONSE_GENERATED',
+            provider: provider || null,
+            module,
+            route: '/api/chat',
+            metadata: req.session?.metadata,
+        });
 
-        // 4. Save AI Response to DB
-        const savedAiMessage = await saveSessionMessage(userId, currentSessionId, 'assistant', aiResponseText, 'text');
+        const title = currentSessionId ? null : buildSessionTitle(module, message);
 
-        // 5. Log interaction
-        saveAIInteraction({
+        const persisted = await persistChatTurn({
             userId,
             module,
-            prompt: message.trim(),
-            response: aiResponseText,
+            sessionId: currentSessionId,
+            title,
+            userMessage: message.trim(),
+            assistantMessage: aiResponseText,
+            provider,
+            notice,
+            inputType,
             endpoint: '/api/chat',
-        }).catch((e) => console.warn('[Firestore] saveAIInteraction failed:', e?.message || e));
+        });
+
+        // API events
+        if (!currentSessionId && persisted?.sessionId) {
+            logEvent(userId, {
+                type: 'api',
+                action: 'SESSION_CREATED',
+                module,
+                route: '/api/sessions',
+                metadata: req.session?.metadata,
+            });
+        }
+        logEvent(userId, {
+            type: 'api',
+            action: 'MESSAGE_SENT',
+            module,
+            route: '/api/messages',
+            metadata: req.session?.metadata,
+        });
 
         // 6. Return structured response
         successResponse(res, 'AI Response generated', {
             reply: aiResponseText,
-            sessionId: currentSessionId,
-            messageId: savedAiMessage.id,
-            role: 'assistant'
+            sessionId: persisted?.sessionId || currentSessionId,
+            messageId: persisted?.assistantMessageId,
+            role: 'assistant',
+            provider: provider || null,
+            notice: notice || null,
         });
 
     } catch (err) {
@@ -92,6 +160,18 @@ const getSessions = async (req, res) => {
     try {
         const userId = req.user.id;
         const { module } = req.query;
+
+        logEvent(userId, {
+            type: 'api',
+            action: 'API_CALL',
+            module: module ? String(module) : null,
+            route: '/api/sessions',
+            metadata: req.session?.metadata,
+        });
+
+        // This endpoint is called when opening modules (sidebar/history load)
+        if (module) console.log(`Functionality: ${formatFunctionalityName(module)} (sessions)`);
+
         const sessions = await getAiSessions(userId, module);
         successResponse(res, 'Sessions retrieved', sessions);
     } catch (err) {
@@ -103,9 +183,22 @@ const getMessages = async (req, res) => {
     try {
         const userId = req.user.id;
         const { sessionId } = req.params;
+
+        logEvent(userId, {
+            type: 'api',
+            action: 'API_CALL',
+            module: null,
+            route: `/api/messages/${sessionId}`,
+            metadata: req.session?.metadata,
+        });
+
         if (!sessionId) {
             return errorResponse(res, 400, 'Session ID is required');
         }
+
+        // Called when opening a session; module may be unknown here
+        console.log(`Functionality: Session Messages (sessionId=${sessionId})`);
+
         const messages = await getSessionMessages(userId, sessionId, 100);
         successResponse(res, 'Session messages retrieved', messages);
     } catch (err) {

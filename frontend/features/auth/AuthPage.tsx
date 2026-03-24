@@ -16,9 +16,10 @@ import {
   updateProfile,
 } from 'firebase/auth';
 
-import { auth } from '../../lib/firebaseClient';
+import { auth, isFirebaseConfigured, firebaseEnvStatus } from '../../lib/firebaseClient';
 import { useStore } from '../../store/useStore';
 import GoogleIcon from './GoogleIcon';
+import { logSystemEvent } from '../../services/interactionService';
 
 interface AuthPageProps {
   defaultMode?: 'login' | 'signup';
@@ -27,6 +28,34 @@ interface AuthPageProps {
 const AuthPage: React.FC<AuthPageProps> = ({ defaultMode = 'login' }) => {
   const { login, targetSwitchEmail, setTargetSwitchEmail, isAuthenticated, isVerified, isAuthLoading } = useStore();
   const navigate = useNavigate();
+
+  if (!isFirebaseConfigured || !auth) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-background px-6">
+        <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 text-foreground">
+          <h1 className="text-xl font-semibold">Firebase is not configured</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Your frontend environment variables are missing. Add these to <strong>frontend/.env</strong> (or a gitignored
+            <strong> frontend/.env.local</strong>) and restart <strong>npm run dev</strong>.
+          </p>
+
+          <div className="mt-4 rounded-xl bg-background/60 p-4 text-sm">
+            <div className="font-medium">Required keys</div>
+            <ul className="mt-2 list-disc pl-5 text-muted-foreground">
+              <li>NEXT_PUBLIC_FIREBASE_API_KEY {firebaseEnvStatus.apiKey ? '(set)' : '(missing)'}</li>
+              <li>NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN {firebaseEnvStatus.authDomain ? '(set)' : '(missing)'}</li>
+              <li>NEXT_PUBLIC_FIREBASE_PROJECT_ID {firebaseEnvStatus.projectId ? '(set)' : '(missing)'}</li>
+              <li>NEXT_PUBLIC_FIREBASE_APP_ID {firebaseEnvStatus.appId ? '(set)' : '(missing)'}</li>
+            </ul>
+          </div>
+
+          <p className="mt-4 text-sm text-muted-foreground">
+            You can copy the template from <strong>.env.example</strong> in the repo root.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const [isLogin, setIsLogin] = useState(defaultMode === 'login');
   const [email, setEmail] = useState('');
@@ -179,9 +208,21 @@ const AuthPage: React.FC<AuthPageProps> = ({ defaultMode = 'login' }) => {
         },
         token
       );
+
+      logSystemEvent({ type: 'auth', action: 'USER_LOGIN' });
+
       navigate('/dashboard', { replace: true });
     } catch (err: any) {
       const code = err?.code as string | undefined;
+
+      // Log failed Google auth
+      logSystemEvent({
+        type: 'auth',
+        action: 'USER_LOGIN_FAILED',
+        description: 'Google sign-in failed',
+        errorCode: code,
+        errorMessage: typeof err?.message === 'string' ? err.message : 'Unknown error',
+      });
 
       // User intentionally closed the popup: don't show a scary error.
       if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
@@ -272,6 +313,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ defaultMode = 'login' }) => {
           },
           token
         );
+        logSystemEvent({ type: 'auth', action: 'USER_LOGIN' });
         navigate('/dashboard', { replace: true });
         return;
       }
@@ -300,11 +342,22 @@ const AuthPage: React.FC<AuthPageProps> = ({ defaultMode = 'login' }) => {
         },
         token
       );
+
+      logSystemEvent({ type: 'auth', action: 'USER_SIGNUP' });
+
       // Redirect to verify-email; ProtectedRoute will also enforce this,
       // but explicit navigate gives a clean URL.
       navigate('/verify-email', { replace: true });
     } catch (err: any) {
       const code = err?.code as string | undefined;
+
+      logSystemEvent({
+        type: 'auth',
+        action: isLogin ? 'USER_LOGIN_FAILED' : 'USER_SIGNUP_FAILED',
+        description: isLogin ? 'Email/password login failed' : 'Signup failed',
+        errorCode: code,
+        errorMessage: typeof err?.message === 'string' ? err.message : 'Unknown error',
+      });
 
       // If user tries email/password login but account was created with Google only,
       // explain how to enable password so both methods work.

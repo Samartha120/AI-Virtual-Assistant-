@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Timer, Play, Pause, RotateCcw, Sparkles, Flame, Settings2, X } from 'lucide-react';
 import { askNexus } from '../../services/aiService';
+import { logSystemEvent } from '../../../services/interactionService';
 
 // ─────────────────────── constants ────────────────────────────────────────────
 const DEFAULT_WORK = 25;
@@ -29,6 +30,10 @@ function playBeep() {
 
 // ─────────────────────── component ────────────────────────────────────────────
 const FocusTimer: React.FC = () => {
+    useEffect(() => {
+        logSystemEvent({ type: 'module', action: 'OPEN_FOCUS_TIMER', module: 'focus_timer' });
+    }, []);
+
     const [mode, setMode] = useState<'work' | 'break'>('work');
     const [workMins, setWorkMins] = useState(DEFAULT_WORK);
     const [breakMins, setBreakMins] = useState(DEFAULT_BREAK);
@@ -99,6 +104,7 @@ const FocusTimer: React.FC = () => {
     };
 
     const reset = () => {
+        logSystemEvent({ type: 'module', action: 'FOCUS_TIMER_RESET', module: 'focus_timer' });
         setIsRunning(false);
         setSecondsLeft((mode === 'work' ? workMins : breakMins) * 60);
         setAiTip(null);
@@ -147,7 +153,13 @@ const FocusTimer: React.FC = () => {
             {/* Mode Toggle */}
             <div className="flex gap-1 p-1 rounded-xl mb-8" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 {(['work', 'break'] as const).map(m => (
-                    <button key={m} onClick={() => { setMode(m); setSecondsLeft((m === 'work' ? workMins : breakMins) * 60); setIsRunning(false); setAiTip(null); }}
+                    <button key={m} onClick={() => {
+                        logSystemEvent({ type: 'module', action: 'FOCUS_TIMER_MODE_CHANGE', module: 'focus_timer' });
+                        setMode(m);
+                        setSecondsLeft((m === 'work' ? workMins : breakMins) * 60);
+                        setIsRunning(false);
+                        setAiTip(null);
+                    }}
                         className="px-5 py-2 rounded-lg text-sm font-semibold capitalize transition-all"
                         style={{
                             background: mode === m ? (m === 'work' ? 'rgba(139,92,246,0.2)' : 'rgba(16,185,129,0.2)') : 'transparent',
@@ -183,7 +195,10 @@ const FocusTimer: React.FC = () => {
                     style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
                     <RotateCcw size={16} />
                 </button>
-                <button onClick={() => setIsRunning(v => !v)}
+                <button onClick={() => {
+                    logSystemEvent({ type: 'module', action: isRunning ? 'FOCUS_TIMER_PAUSE' : 'FOCUS_TIMER_START', module: 'focus_timer' });
+                    setIsRunning(v => !v);
+                }}
                     className="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold shadow-lg transition-all hover:scale-105 active:scale-95"
                     style={{ background: isWork ? 'linear-gradient(135deg,#8b5cf6,#6d28d9)' : 'linear-gradient(135deg,#10b981,#059669)', boxShadow: `0 0 24px ${isWork ? 'rgba(139,92,246,0.4)' : 'rgba(16,185,129,0.4)'}` }}>
                     {isRunning ? <Pause size={24} /> : <Play size={24} className="ml-1" />}

@@ -8,6 +8,7 @@ import { askNexus } from '../../services/aiService';
 import { getUserFacingAiError } from '../../services/errorUtils';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { logSystemEvent } from '../../services/interactionService';
 
 const Brainstormer: React.FC = () => {
   const [topic, setTopic] = useState('');
@@ -15,6 +16,10 @@ const Brainstormer: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | undefined>(undefined);
   const navigate = useNavigate();
+
+  React.useEffect(() => {
+    logSystemEvent({ type: 'module', action: 'OPEN_BRAINSTORMER', module: 'brainstormer' });
+  }, []);
 
   const handleBrainstorm = async () => {
     if (!topic.trim()) return;

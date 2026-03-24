@@ -11,6 +11,7 @@ import { fetchKnowledgeItems } from '../../services/firestoreService';
 import { ChatHeader } from '../../components/chat/ChatHeader';
 import { ChatMessage } from '../../components/chat/ChatMessage';
 import { ChatInput } from '../../components/chat/ChatInput';
+import { logSystemEvent } from '../../services/interactionService';
 
 const ChatInterface: React.FC = () => {
   const [messages, setMessages] = useState<IChatMessage[]>([]);
@@ -49,10 +50,20 @@ const ChatInterface: React.FC = () => {
     fetchKb();
   }, []);
 
-  const simulateStreaming = async (fullText: string) => {
+  useEffect(() => {
+    logSystemEvent({ type: 'module', action: 'OPEN_NEURAL_CHAT', module: 'neural_chat' });
+  }, []);
+
+  const simulateStreaming = async (fullText: string, meta?: { notice?: string | null; provider?: string | null }) => {
     streamingRef.current = true;
     setIsStreaming(true);
-    const aiMsg: IChatMessage = { role: 'model', text: '', timestamp: Date.now() };
+    const aiMsg: IChatMessage = {
+      role: 'model',
+      text: '',
+      timestamp: Date.now(),
+      notice: meta?.notice ?? undefined,
+      provider: meta?.provider ?? undefined,
+    };
     setMessages(prev => [...prev, aiMsg]);
 
     const chunkSize = 5;
@@ -104,7 +115,7 @@ const ChatInterface: React.FC = () => {
       }
 
       setIsLoading(false);
-      await simulateStreaming(response.reply);
+      await simulateStreaming(response.reply, { notice: response.notice ?? null, provider: response.provider ?? null });
 
     } catch (error) {
       console.error("Chat Error:", error);
@@ -144,6 +155,8 @@ const ChatInterface: React.FC = () => {
               key={idx}
               role={msg.role}
               content={msg.text}
+              notice={msg.notice}
+              provider={msg.provider}
               isStreaming={isStreaming && idx === messages.length - 1 && msg.role === 'model'}
             />
           ))}

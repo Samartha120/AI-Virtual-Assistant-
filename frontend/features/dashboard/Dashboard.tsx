@@ -18,6 +18,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { dashboardService } from '../../src/services/dashboardService';
 import { ApiError } from '../../services/apiClient';
+import { api } from '../../src/services/apiClient';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -27,6 +28,8 @@ const Dashboard: React.FC = () => {
     knowledgeDocs: 0,
     ideasGenerated: 12
   });
+
+  const [recentLogs, setRecentLogs] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchDashboardStats = async () => {
@@ -46,6 +49,28 @@ const Dashboard: React.FC = () => {
       }
     };
     fetchDashboardStats();
+  }, []);
+
+  useEffect(() => {
+    const fetchLogs = async () => {
+      try {
+        const resp = await api.get<{ success: boolean; data: { logs: any[] } }>('/system-logs?limit=10');
+        setRecentLogs(resp?.data?.logs || []);
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 401) return;
+      }
+    };
+
+    fetchLogs();
+    const id = window.setInterval(fetchLogs, 7000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    // Module open event
+    import('../../services/interactionService').then(({ logSystemEvent }) => {
+      logSystemEvent({ type: 'module', action: 'OPEN_COMMAND_CENTER', module: 'dashboard' });
+    }).catch(() => undefined);
   }, []);
 
   const container = {
@@ -144,7 +169,7 @@ const Dashboard: React.FC = () => {
           {/* Quick Actions */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <motion.div variants={item} onClick={() => navigate('/history/neural_chat')} className="cursor-pointer">
-              <Card hoverEffect className="h-full flex flex-col justify-between min-h-[160px] bg-linear-to-br from-surface to-background">
+              <Card hoverEffect className="h-full flex flex-col justify-between min-h-40 bg-linear-to-br from-surface to-background">
                 <div className="p-2 w-fit rounded-lg bg-primary/20 text-primary mb-4">
                   <MessageSquare size={24} />
                 </div>
@@ -156,7 +181,7 @@ const Dashboard: React.FC = () => {
             </motion.div>
 
             <motion.div variants={item} onClick={() => navigate('/history/doc_analyzer')} className="cursor-pointer">
-              <Card hoverEffect className="h-full flex flex-col justify-between min-h-[160px] bg-linear-to-br from-surface to-background">
+              <Card hoverEffect className="h-full flex flex-col justify-between min-h-40 bg-linear-to-br from-surface to-background">
                 <div className="p-2 w-fit rounded-lg bg-blue-500/20 text-blue-400 mb-4">
                   <FileText size={24} />
                 </div>
@@ -168,7 +193,7 @@ const Dashboard: React.FC = () => {
             </motion.div>
 
             <motion.div variants={item} onClick={() => navigate('/history/brainstormer')} className="cursor-pointer">
-              <Card hoverEffect className="h-full flex flex-col justify-between min-h-[160px] bg-linear-to-br from-surface to-background">
+              <Card hoverEffect className="h-full flex flex-col justify-between min-h-40 bg-linear-to-br from-surface to-background">
                 <div className="p-2 w-fit rounded-lg bg-amber-500/20 text-amber-400 mb-4">
                   <Zap size={24} />
                 </div>
@@ -180,28 +205,39 @@ const Dashboard: React.FC = () => {
             </motion.div>
           </div>
 
-          {/* Recent Systems Log - Simulated */}
+          {/* Recent Systems Log */}
           <motion.div variants={item} className="mt-8">
-            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-              <Activity size={18} className="text-primary" />
-              System Logs
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Activity size={18} className="text-primary" />
+                System Logs
+              </h3>
+              <button
+                onClick={() => navigate('/system-logs')}
+                className="text-xs text-primary hover:underline"
+              >
+                View all
+              </button>
+            </div>
             <Card className="overflow-hidden">
               <div className="divide-y divide-white/5">
-                {[
-                  { event: 'System initialization complete', time: '14:42:01', type: 'info' },
-                  { event: 'Neural engine connected to Grok API', time: '14:41:55', type: 'success' },
-                  { event: 'Database synchronization finished', time: '14:41:42', type: 'info' },
-                  { event: 'Security protocols active', time: '14:41:30', type: 'success' },
-                ].map((log, i) => (
-                  <div key={i} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
+                {(recentLogs || []).map((log, i) => (
+                  <div key={log.id || i} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
                     <div className="flex items-center gap-3">
-                      <div className={`w - 1.5 h - 1.5 rounded - full ${log.type === 'success' ? 'bg-emerald-500' : 'bg-blue-500'} `} />
-                      <span className="text-sm text-gray-300 font-mono">{log.event}</span>
+                      <div className={`w-1.5 h-1.5 rounded-full ${log.type === 'auth' ? 'bg-emerald-500' : log.type === 'ai' ? 'bg-amber-500' : log.type === 'api' ? 'bg-blue-500' : 'bg-primary'}`} />
+                      <span className="text-sm text-gray-300 font-mono">{log.action}</span>
                     </div>
-                    <span className="text-xs text-gray-500 font-mono">{log.time}</span>
+                    <span className="text-xs text-gray-500 font-mono">
+                      {(() => {
+                        const ms = (typeof log.timestampMillis === 'number' && log.timestampMillis) || (typeof log.clientTimestamp === 'number' && log.clientTimestamp) || (log.timestamp ? new Date(log.timestamp).getTime() : 0);
+                        return ms ? new Date(ms).toLocaleTimeString() : '';
+                      })()}
+                    </span>
                   </div>
                 ))}
+                {(!recentLogs || recentLogs.length === 0) && (
+                  <div className="p-4 text-sm text-gray-500">No logs yet.</div>
+                )}
               </div>
             </Card>
           </motion.div>

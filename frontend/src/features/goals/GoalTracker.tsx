@@ -12,6 +12,7 @@ import {
     fetchGoals,
     updateGoal as updateGoalRecord,
 } from '../../services/firestoreService';
+import { logSystemEvent } from '../../../services/interactionService';
 
 // ─────────────────────── types ────────────────────────────────────────────────
 type Category = 'work' | 'personal' | 'health' | 'learning';
@@ -92,6 +93,10 @@ const ProgressRing: React.FC<{ pct: number; color: string; size?: number }> = ({
 
 // ─────────────────────────── main component ───────────────────────────────────
 const GoalTracker: React.FC = () => {
+    useEffect(() => {
+        logSystemEvent({ type: 'module', action: 'OPEN_GOAL_TRACKER', module: 'goal_tracker' });
+    }, []);
+
     const [goals, setGoals] = useState<Goal[]>([]);
     const [filter, setFilter] = useState<Category | 'all'>('all');
     const [showForm, setShowForm] = useState(false);
@@ -165,6 +170,9 @@ const GoalTracker: React.FC = () => {
 
     const addGoal = async () => {
         if (!formTitle.trim()) return;
+
+        logSystemEvent({ type: 'api', action: 'GOAL_CREATED', module: 'goal_tracker' });
+
         const krs: KeyResult[] = formKRs
             .filter(k => k.trim())
             .map(k => {
