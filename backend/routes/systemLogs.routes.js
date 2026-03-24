@@ -51,9 +51,21 @@ router.get('/system-logs', async (req, res) => {
 router.post('/system-logs', async (req, res) => {
   try {
     const userId = req.user.id;
-    const { logEvent } = require('../utils/logService');
 
-    const { type, action, module, provider, clientTimestamp, description, errorCode, errorMessage } = req.body || {};
+    const {
+      type,
+      action,
+      module,
+      provider,
+      route,
+      clientTimestamp,
+      message,
+      description,
+      status,
+      durationMs,
+      errorCode,
+      errorMessage,
+    } = req.body || {};
 
     // Fire-and-forget; respond immediately
     logEvent(userId, {
@@ -61,11 +73,16 @@ router.post('/system-logs', async (req, res) => {
       action: action || 'UNKNOWN',
       module: module || null,
       provider: provider || null,
-      description: typeof description === 'string' ? description : undefined,
+      route: typeof route === 'string' ? route : (req.originalUrl || req.path),
+      description:
+        typeof description === 'string'
+          ? description
+          : (typeof message === 'string' ? message : undefined),
+      status: typeof status === 'number' ? status : undefined,
+      durationMs: typeof durationMs === 'number' ? durationMs : undefined,
       errorCode: typeof errorCode === 'string' ? errorCode : undefined,
       errorMessage: typeof errorMessage === 'string' ? errorMessage : undefined,
       clientTimestamp: typeof clientTimestamp === 'number' ? clientTimestamp : undefined,
-      route: req.originalUrl || req.path,
       metadata: req.session?.metadata,
     });
 

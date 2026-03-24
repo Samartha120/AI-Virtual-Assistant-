@@ -33,13 +33,17 @@ export async function saveAIInteraction(module: string, prompt: string, response
   }
 }
 
-export type SystemLogType = 'auth' | 'api' | 'module' | 'ai';
+export type SystemLogType = 'navigation' | 'api' | 'action' | 'ai' | 'auth' | 'module';
 
 export async function logSystemEvent(event: {
   type: SystemLogType;
   action: string;
   module?: string;
   provider?: string;
+  route?: string;
+  message?: string;
+  status?: number;
+  durationMs?: number;
   description?: string;
   errorCode?: string;
   errorMessage?: string;
@@ -48,6 +52,8 @@ export async function logSystemEvent(event: {
   try {
     const payload = {
       ...event,
+      // Prefer `message` but keep backwards-compatible `description`
+      description: typeof event.description === 'string' ? event.description : (typeof event.message === 'string' ? event.message : undefined),
       clientTimestamp: Date.now(),
     };
 

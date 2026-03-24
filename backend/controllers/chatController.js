@@ -68,6 +68,16 @@ const chat = async (req, res) => {
             return errorResponse(res, 400, 'Module is required');
         }
 
+        // Action log: user submitted a message (only after validation)
+        logEvent(userId, {
+            type: 'action',
+            action: 'MESSAGE_SENT',
+            module,
+            route: '/api/chat',
+            description: `User sent a ${inputType} message`,
+            metadata: req.session?.metadata,
+        });
+
         // Fetch recent chat history from DB only when continuing an existing session.
         // For brand-new sessions we intentionally avoid creating a session until we have
         // a valid assistant reply to persist (prevents empty “hi…” sessions).
@@ -104,6 +114,7 @@ const chat = async (req, res) => {
             provider: provider || null,
             module,
             route: '/api/chat',
+            description: notice ? String(notice) : `AI response generated using ${provider || 'unknown provider'}`,
             metadata: req.session?.metadata,
         });
 

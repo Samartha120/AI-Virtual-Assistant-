@@ -2,12 +2,12 @@
 
 import * as React from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import { Shield, Bot, Package, BarChart3, RefreshCw } from 'lucide-react';
+import { Shield, Bot, Package, BarChart3, RefreshCw, MapPin, Zap } from 'lucide-react';
 import { api } from '../../src/services/apiClient';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 
-type LogType = 'auth' | 'api' | 'module' | 'ai';
+type LogType = 'auth' | 'api' | 'module' | 'ai' | 'navigation' | 'action';
 
 type SystemLog = {
   id: string;
@@ -30,6 +30,10 @@ type SystemLog = {
 
 function iconForType(type: LogType) {
   switch (type) {
+    case 'navigation':
+      return <MapPin size={16} className="text-fuchsia-400" />;
+    case 'action':
+      return <Zap size={16} className="text-yellow-300" />;
     case 'auth':
       return <Shield size={16} className="text-emerald-400" />;
     case 'ai':
@@ -50,6 +54,16 @@ function groupByDate(logs: SystemLog[]) {
     groups[key] = groups[key] || [];
     groups[key].push(l);
   }
+
+  // Latest logs on top within each date group
+  for (const k of Object.keys(groups)) {
+    groups[k].sort((a, b) => {
+      const ams = (a.timestampMillis || a.clientTimestamp || (a.timestamp ? new Date(a.timestamp).getTime() : 0)) || 0;
+      const bms = (b.timestampMillis || b.clientTimestamp || (b.timestamp ? new Date(b.timestamp).getTime() : 0)) || 0;
+      return bms - ams;
+    });
+  }
+
   return groups;
 }
 
@@ -96,6 +110,8 @@ export default function SystemLogsPage() {
             className="h-9 px-3 rounded-lg bg-surface border border-border text-xs text-text-secondary"
           >
             <option value="all">All</option>
+            <option value="navigation">Navigation</option>
+            <option value="action">Action</option>
             <option value="auth">Auth</option>
             <option value="module">Module</option>
             <option value="api">API</option>

@@ -7,18 +7,18 @@ function isLogsRoute(pathname: string) {
 }
 
 function moduleFromPathname(pathname: string) {
-  if (pathname.startsWith('/chat/live')) return 'live-assistant';
-  if (pathname.startsWith('/chat/neural')) return 'neural-chat';
-  if (pathname.startsWith('/chat/doc')) return 'doc-analyzer';
+  if (pathname.startsWith('/chat/live')) return 'live_assistant';
+  if (pathname.startsWith('/chat/neural')) return 'neural_chat';
+  if (pathname.startsWith('/chat/doc')) return 'doc_analyzer';
   if (pathname.startsWith('/chat/brainstorm')) return 'brainstormer';
-  if (pathname.startsWith('/chat/write')) return 'writing-studio';
+  if (pathname.startsWith('/chat/write')) return 'writing_studio';
   if (pathname.startsWith('/dashboard')) return 'dashboard';
-  if (pathname.startsWith('/task-board')) return 'task-board';
-  if (pathname.startsWith('/knowledge-base')) return 'knowledge-base';
-  if (pathname.startsWith('/focus-timer')) return 'focus-timer';
-  if (pathname.startsWith('/goal-tracker')) return 'goal-tracker';
+  if (pathname.startsWith('/task-board')) return 'task_board';
+  if (pathname.startsWith('/knowledge-base')) return 'knowledge_base';
+  if (pathname.startsWith('/focus-timer')) return 'focus_timer';
+  if (pathname.startsWith('/goal-tracker')) return 'goal_tracker';
   if (pathname.startsWith('/settings')) return 'settings';
-  if (pathname.startsWith('/system-logs')) return 'system-logs';
+  if (pathname.startsWith('/system-logs')) return 'system_logs';
   return pathname.replace(/^\//, '') || 'root';
 }
 
@@ -37,10 +37,11 @@ export function useAuditTrailNavigation() {
 
       if (!isLogsRoute(pathname)) {
         logSystemEvent({
-          type: 'module',
+          type: 'navigation',
           action: 'NAVIGATE_ENTER',
           module: moduleFromPathname(pathname),
-          description: `Entered ${pathname}`,
+          route: pathname,
+          message: `Entered ${pathname}`,
         });
       }
       return;
@@ -55,20 +56,23 @@ export function useAuditTrailNavigation() {
     // Leave previous route
     if (!isLogsRoute(prev)) {
       logSystemEvent({
-        type: 'module',
+        type: 'navigation',
         action: 'NAVIGATE_LEAVE',
         module: moduleFromPathname(prev),
-        description: `Left ${prev} -> ${pathname}`,
+        route: prev,
+        durationMs,
+        message: `Left ${prev} -> ${pathname}`,
       });
     }
 
     // Enter new route
     if (!isLogsRoute(pathname)) {
       logSystemEvent({
-        type: 'module',
+        type: 'navigation',
         action: 'NAVIGATE_ENTER',
         module: moduleFromPathname(pathname),
-        description: `Entered ${pathname} (from ${prev}, after ${durationMs}ms)`,
+        route: pathname,
+        message: `Entered ${pathname}`,
       });
     }
 
@@ -91,10 +95,11 @@ export function useAuditTrailTabClose() {
         const url = `${window.location.origin}/api/system-logs`;
 
         const body = JSON.stringify({
-          type: 'module',
+          type: 'navigation',
           action: 'TAB_CLOSE',
           module: moduleFromPathname(pathname),
-          description: `Tab/window closed on ${pathname}`,
+          route: pathname,
+          message: `Tab/window closed on ${pathname}`,
           clientTimestamp: Date.now(),
         });
 
